@@ -4,11 +4,11 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.example</groupId>
-        <artifactId>backend-spring-takeout</artifactId>
+        <artifactId>backend-spring-restaurant</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
     <groupId>org.example</groupId>
-    <artifactId>mapper</artifactId>
+    <artifactId>service</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <url/>
     <licenses>
@@ -29,8 +29,18 @@
     <dependencies>
         <dependency>
             <groupId>org.example</groupId>
-            <artifactId>model</artifactId>
+            <artifactId>mapper</artifactId>
             <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

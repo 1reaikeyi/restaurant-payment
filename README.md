@@ -1,6 +1,6 @@
-# TakeOut 餐饮订单和支付系统
+# Restaurant-payment 餐饮和支付系统
 
-一个基于 Spring Boot 3 + Vue 3 的全栈外卖餐饮管理系统，前后端分离架构。提供完整的用户端和管理端功能，支持菜品管理、套餐管理、订单处理、支付集成、实时通信等核心能力。
+一个基于 Spring Boot 3 + Vue 3 的全栈餐饮订单和支付系统，前后端分离架构。spring AI作为单独服务接入，通过周围人菜品识别对应菜单。提供完整的用户端和管理端功能，支持菜品管理、套餐管理、订单处理、支付集成、实时通信等核心能力。
 
 ------
 
@@ -29,6 +29,33 @@
 ------
 
 
+
+# 项目结构
+
+```
+take-out/
+├── backend-spring-takeout/           # 后端代码
+├── database-sql/                     # 数据库脚本目录
+│   ├── sql.txt                       # 数据库初始化SQL
+│   └── 数据库设计文档.md              # 完整的数据库设计说明
+├── frontend-vue-admin-takeout/       # 前端管理端（Vue 3）
+└── 说明/                             # 项目说明文档
+    ├── 原型功能/                     # 前端原型截图
+    ├── 支付功能/                     # 支付流程截图
+    ├── 用户端接口.html       # 用户端API接口文档
+    └── 管理端接口.html       # 管理端API接口文档
+```
+
+# 环境要求
+
+- JDK 17+
+- Spring Boot 3+
+- Node.js 20.19.0+ 或 22.12.0+
+- MySQL 8.0+
+- Redis 7.0+
+- Maven 3.8+
+
+---
 
 ## 一、用户与员工认证模块
 
@@ -1105,6 +1132,20 @@ public class ServiceInterceptAspect {
 | Spring Boot Starter Web | 3.3.8 | LocalFileController实现本地文件上传/下载 |
 | com.alibaba.easyexcel | -- | 实现excel，员工信息，菜品信息，套餐信息的读写 |
 
+### AI 热线功能依赖（独立服务 ai-hotline）
+| 依赖 | 版本 | 功能支撑 |
+| :--- | :--- | :--- |
+| Spring Boot | 3.5.15 | 应用框架（独立版本，与主应用3.3.8解耦） |
+| Spring AI BOM | 1.1.0 | 统一管理 Spring AI 各组件版本 |
+| spring-ai-starter-model-openai | 1.1.0 | **AI 模型接入**：对接 SiliconFlow（OpenAI 兼容 API），使用 Qwen3.5-397B-A17B 多模态大模型 |
+| spring-ai-alibaba-graph-core | 1.1.0.0 | **图工作流引擎**：Alibaba Cloud AI Graph，编排 VisualFunction → ToolFunction 两节点 StateGraph |
+| Spring Boot Starter Data Redis | 3.5.15 | **聊天记忆**：ChatMemoryRepository 将对话历史持久化到 Redis |
+| spring-ai-starter-vector-store-redis | 1.1.0 | Redis 向量存储支持（预留语义检索能力） |
+| spring-ai-advisors-vector-store | 1.1.0 | Advisor 向量存储支持 |
+| MyBatis Plus | 3.5.9 | SetmealMapper 实现套餐数据查询（AI Tool 的数据库查询能力） |
+| MySQL Connector | 8.0.32 | 数据库驱动 |
+| Hutool All | 5.8.26 | 工具类支持 |
+
 ---
 
 ### 支付流程说明
@@ -1165,33 +1206,6 @@ public Result deleteSetmeal(List<Long> ids) {
 }
 ```
 > 本项目改进：使用 `@CacheEvict(cacheNames = "setmeal", allEntries = true)` 自动清除所有套餐缓存。
-
----
-
-# 项目结构
-
-```
-take-out/
-├── backend-spring-takeout/           # 后端代码
-├── database-sql/                     # 数据库脚本目录
-│   ├── sql.txt                       # 数据库初始化SQL
-│   └── 数据库设计文档.md              # 完整的数据库设计说明
-├── frontend-vue-admin-takeout/       # 前端管理端（Vue 3）
-└── 说明/                             # 项目说明文档
-    ├── 原型功能/                     # 前端原型截图
-    ├── 支付功能/                     # 支付流程截图
-    ├── 苍穹外卖-用户端接口.html       # 用户端API接口文档
-    └── 苍穹外卖-管理端接口.html       # 管理端API接口文档
-```
-
-# 环境要求
-
-- JDK 17+
-- Spring Boot 3+
-- Node.js 20.19.0+ 或 22.12.0+
-- MySQL 8.0+
-- Redis 7.0+
-- Maven 3.8+
 
 ---
 

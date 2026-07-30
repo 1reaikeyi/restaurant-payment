@@ -11,6 +11,7 @@
         <option value="$PROJECT_DIR$/controller/pom.xml" />
         <option value="$PROJECT_DIR$/ai-hotline-service/pom.xml" />
         <option value="$PROJECT_DIR$/ai-hotline/pom.xml" />
+        <option value="$PROJECT_DIR$/ai-see/pom.xml" />
       </list>
     </option>
     <option name="ignoredFiles">

@@ -9,7 +9,7 @@
         <relativePath/>
     </parent>
     <groupId>org.example</groupId>
-    <artifactId>backend-spring-takeout</artifactId>
+    <artifactId>backend-spring-restaurant</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
     <url/>

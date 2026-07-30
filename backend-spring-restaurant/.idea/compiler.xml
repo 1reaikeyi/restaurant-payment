@@ -11,7 +11,7 @@
         <module name="mapper" />
         <module name="model" />
         <module name="common" />
-        <module name="ai-hotline" />
+        <module name="ai-see" />
         <module name="service" />
       </profile>
     </annotationProcessing>
@@ -21,7 +21,7 @@
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
-      <module name="ai-hotline" options="-parameters" />
+      <module name="ai-see" options="-parameters" />
       <module name="common" options="-parameters" />
       <module name="mapper" options="-parameters" />
       <module name="model" options="-parameters" />
