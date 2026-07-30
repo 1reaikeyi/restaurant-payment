@@ -16,7 +16,7 @@ import pojo.dto.order.OrdersDTO;
 import pojo.dto.order.OrdersHistoryDTO;
 import pojo.entity.OrderDetail;
 import pojo.entity.Orders;
-import pojo.entityenum.OrderStatus;
+import pojo.entityenum.OrderStatusEnum;
 import service.ISevcive.OrderDetailService;
 import service.ISevcive.OrderService;
 import start.controller.pay.service.AlipayService;
@@ -50,7 +50,7 @@ public class UserOrderController {
     @GetMapping("/pay/{id}")
     public void payOrder(@PathVariable Long id, HttpServletResponse response) throws Exception {
         Orders payOrder = orderService.getById(id);
-        payOrder.setStatus(OrderStatus.ACCEPTED);
+        payOrder.setStatus(OrderStatusEnum.PENDING_MERCHANT_ACCEPT);
         //1->支付宝，2是微信
         payOrder.setPayMethod(1L);
         orderService.updateById(payOrder);
@@ -70,7 +70,7 @@ public class UserOrderController {
     @PutMapping("/cancel/{id}")
     public Result cancelOrder(@PathVariable Long id) {
         Orders orders = orderService.getById(id);
-        orders.setStatus(OrderStatus.CANCELLED);
+        orders.setStatus(OrderStatusEnum.CANCELLED);
         orders.setCancelReason("XXXXXXXXXX");
         orderService.updateById(orders);
         try {
@@ -88,14 +88,13 @@ public class UserOrderController {
     @PostMapping("/submit")
     public Result submitOrder(@RequestBody OrdersDTO orderDTO) {
         Orders orders = BeanUtil.toBean(orderDTO, Orders.class);
-        orders.setStatus(OrderStatus.PENDING);
+        orders.setStatus(OrderStatusEnum.PENDING_PAYMENT);
         orderService.save(orders);
         Long orderId = orders.getId();
         List<OrderDetail> orderDetailList = orderDTO.getOrderDetails()
                     .stream()
                     .map((OrderDetail orderDetail) -> {
                         OrderDetail orderDetail1 = BeanUtil.toBean(orderDetail, OrderDetail.class);
-                       
                         orderDetail1.setOrderId(orderId);
                         return orderDetail1;
                     })
@@ -103,7 +102,6 @@ public class UserOrderController {
         orderDetailService.saveBatch(orderDetailList);
         return Result.success("submitOrder::" + orders.getId());
     }
-
 
     @PostMapping("/repetition/{id}")
     public Result repetitionOrder(@PathVariable Long id, HttpServletResponse httpServletResponse) {
@@ -118,6 +116,7 @@ public class UserOrderController {
         orderDetailService.saveBatch(orderDetailList);
         return Result.success("repetitionOrder::" + newOrders.getId());
     }
+
     @GetMapping("/get/{id}")
     public Result readOrderById(@PathVariable Long id) {
         Map<String, Object> map = ThreadLocalContextHolder.get();

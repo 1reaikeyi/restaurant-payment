@@ -21,9 +21,6 @@ public class OrderOverViewVO implements Serializable {
     //已完成数量
     private Long completedOrders;
 
-    //已取消数量
-    private Long cancelledOrders;
-
     //全部订单
     private Long allOrders;
 

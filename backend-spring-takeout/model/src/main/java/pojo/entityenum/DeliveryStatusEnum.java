@@ -1,9 +1,8 @@
 package pojo.entityenum;
 
 import com.baomidou.mybatisplus.annotation.EnumValue;
-import java.time.LocalDateTime;
 
-public enum DeliveryStatus {
+public enum DeliveryStatusEnum {
     /**
      * 配送状态：1立即送出 0选择具体时间
      */
@@ -12,7 +11,7 @@ public enum DeliveryStatus {
     @EnumValue
     private Long value;
     private String name;
-    private DeliveryStatus(Long value, String name) {
+    private DeliveryStatusEnum(Long value, String name) {
         this.name = name;
         this.value = value;
     }

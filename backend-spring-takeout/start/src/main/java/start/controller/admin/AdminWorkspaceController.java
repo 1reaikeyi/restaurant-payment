@@ -9,7 +9,7 @@ import pojo.entity.Dish;
 import pojo.entity.OrderDetail;
 import pojo.entity.Orders;
 import pojo.entity.Setmeal;
-import pojo.entityenum.OrderStatus;
+import pojo.entityenum.OrderStatusEnum;
 import pojo.vo.workspaces.*;
 import service.ISevcive.DishService;
 import service.ISevcive.OrderDetailService;
@@ -67,11 +67,9 @@ public class AdminWorkspaceController {
        OrderOverViewVO vo = new OrderOverViewVO();
        vo.setAllOrders(orderService.count());
        vo.setCompletedOrders(orderService.count(new LambdaQueryWrapper<Orders>()
-               .eq(Orders::getStatus, OrderStatus.COMPLETED)));
+               .eq(Orders::getStatus, OrderStatusEnum.COMPLETED)));
         vo.setRefundOrders(orderService.count(new LambdaQueryWrapper<Orders>()
-                .eq(Orders::getStatus, OrderStatus.REFUNDED)));
-        vo.setCancelledOrders(orderService.count(new LambdaQueryWrapper<Orders>()
-                .eq(Orders::getStatus, OrderStatus.CANCELLED)));
+                .eq(Orders::getStatus, OrderStatusEnum.CANCELLED)));
         return Result.success(vo);
     }
     @PostMapping("/statisticsOrder")
@@ -85,11 +83,11 @@ public class AdminWorkspaceController {
         // 有效订单数
         Long validOrder = orderService.count(new LambdaQueryWrapper<Orders>()
                 .between(Orders::getCheckoutTime, startOfDay, endOfDay)
-                .eq(Orders::getStatus, OrderStatus.COMPLETED));
+                .eq(Orders::getStatus, OrderStatusEnum.COMPLETED));
         //退款订单数
         Long refundOrder = orderService.count(new LambdaQueryWrapper<Orders>()
                 .between(Orders::getCheckoutTime, startOfDay, endOfDay)
-                .eq(Orders::getStatus, OrderStatus.REFUNDED));
+                .eq(Orders::getStatus, OrderStatusEnum.CANCELLED));
         OrderOverViewVO orderOverViewVO = OrderOverViewVO.builder()
                 .allOrders(totalOrder)
                 .completedOrders(validOrder)
@@ -114,7 +112,7 @@ public class AdminWorkspaceController {
         // 今日有效订单数
         Long validOrder = orderService.count(new LambdaQueryWrapper<Orders>()
                 .between(Orders::getCheckoutTime, startOfDay, endOfDay)
-                .eq(Orders::getStatus, OrderStatus.COMPLETED)
+                .eq(Orders::getStatus, OrderStatusEnum.COMPLETED)
         );
 
         double validRate = 0.0;

@@ -6,8 +6,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import pojo.entityenum.DeliveryStatus;
-import pojo.entityenum.OrderStatus;
+import pojo.entityenum.DeliveryStatusEnum;
+import pojo.entityenum.OrderStatusEnum;
 import pojo.entityenum.PayStatusEnum;
 
 import java.io.Serializable;
@@ -37,7 +37,7 @@ public class Orders implements Serializable {
      */
     @EnumValue
     @TableField("status")
-    private OrderStatus status;
+    private OrderStatusEnum status;
 
     /**
      * 下单用户id
@@ -136,7 +136,7 @@ public class Orders implements Serializable {
      */
     @EnumValue
     @TableField("delivery_status")
-    private DeliveryStatus deliveryStatus;
+    private DeliveryStatusEnum deliveryStatusEnum;
     /**
      * 配送开始时间
      */

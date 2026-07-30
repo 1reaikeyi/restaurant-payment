@@ -109,7 +109,7 @@ public class AlipayController {
 //                }
 //
 //                // 如果订单状态已经是“已支付”，说明之前已经处理过了，直接返回 success
-//                if (OrderStatus.PAID.equals(order.getStatus())) {
+//                if (OrderStatusEnum.PAID.equals(order.getStatus())) {
 //                    log.info("订单已处理过，跳过幂等检查。out_trade_no={}", outTradeNo);
 //                    return "success";
 //                }
@@ -122,7 +122,7 @@ public class AlipayController {
 //                    return "failure";
 //                }
 //                // 建议开启数据库事务，确保状态更新和后续逻辑的一致性
-//                orderService.updateOrderStatus(outTradeNo, OrderStatus.PAID, tradeNo);
+//                orderService.updateOrderStatus(outTradeNo, OrderStatusEnum.PAID, tradeNo);
 //
                 // 这里可以发送消息到 MQ 处理非核心逻辑（如发短信、加积分），避免阻塞回调
                 // mqProducer.sendOrderPaidMessage(outTradeNo);

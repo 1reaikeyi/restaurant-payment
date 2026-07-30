@@ -10,8 +10,8 @@ import org.springframework.web.bind.annotation.*;
 import pojo.dto.order.OrderStatisticsDTO;
 import pojo.dto.order.OrdersPageDTO;
 import pojo.entity.Orders;
-import pojo.entityenum.DeliveryStatus;
-import pojo.entityenum.OrderStatus;
+import pojo.entityenum.DeliveryStatusEnum;
+import pojo.entityenum.OrderStatusEnum;
 import service.ISevcive.OrderService;
 import start.controller.pay.service.AlipayService;
 import start.controller.pay.DTO.RefundDTO;
@@ -41,13 +41,13 @@ public class AdminOrderController {
     public Result statistics() {
         OrderStatisticsDTO orderStatisticsDTO = new OrderStatisticsDTO();
         LambdaQueryWrapper<Orders> ordersLambdaQueryWrapper1 = new LambdaQueryWrapper<>();
-        ordersLambdaQueryWrapper1.eq(Orders::getStatus , OrderStatus.ACCEPTED);
+        ordersLambdaQueryWrapper1.eq(Orders::getStatus , OrderStatusEnum.PENDING_MERCHANT_ACCEPT);
         orderStatisticsDTO.setToBeConfirmed(orderService.count(ordersLambdaQueryWrapper1));
         LambdaQueryWrapper<Orders> ordersLambdaQueryWrapper2 = new LambdaQueryWrapper<>();
-        ordersLambdaQueryWrapper2.eq(Orders::getStatus ,OrderStatus.DELIVERING);
+        ordersLambdaQueryWrapper2.eq(Orders::getStatus , OrderStatusEnum.PENDING_RIDER_PICK);
         orderStatisticsDTO.setDeliveryInProgress(orderService.count(ordersLambdaQueryWrapper2));
         LambdaQueryWrapper<Orders> ordersLambdaQueryWrapper3 = new LambdaQueryWrapper<>();
-        ordersLambdaQueryWrapper3.eq(Orders::getStatus ,OrderStatus.COMFIRM);
+        ordersLambdaQueryWrapper3.eq(Orders::getStatus , OrderStatusEnum.RIDER_DELIVERING);
         orderStatisticsDTO.setDeliveryInProgress(orderService.count(ordersLambdaQueryWrapper3));
         return Result.success(orderStatisticsDTO);
     }
@@ -67,13 +67,13 @@ public class AdminOrderController {
     @PutMapping("/confirm/{orderId}")
     public Result confirmOrders(@PathVariable Long orderId) {
         Orders orders = orderService.getById(orderId);
-        orders.setStatus(OrderStatus.COMFIRM);
-        if (orders.getDeliveryStatus() == DeliveryStatus.NOW) {
+        orders.setStatus(OrderStatusEnum.MERCHANT_COOKING);
+        if (orders.getDeliveryStatusEnum() == DeliveryStatusEnum.NOW) {
             // 核心：当前时间 + 30分钟
             orders.setEstimatedDeliveryTime(LocalDateTime.now().plusMinutes(60));
         }
         orderService.updateById(orders);
-        return Result.success(orderId + "::" + OrderStatus.COMFIRM);
+        return Result.success(orderId);
     }
     /**
      * 商家取消订单，用户退款订单
@@ -84,7 +84,7 @@ public class AdminOrderController {
     @PutMapping("/cancel/{id}")
     public Result cancelOrder(@PathVariable Long id) {
         Orders orders = orderService.getById(id);
-        orders.setStatus(OrderStatus.CANCELLED);
+        orders.setStatus(OrderStatusEnum.CANCELLED);
         orders.setCancelReason("XXX");
         orderService.updateById(orders);
         try {
@@ -107,12 +107,12 @@ public class AdminOrderController {
     @PutMapping("/delivery/{id}")
     public Result deliveryOrders(@PathVariable Long id) {
         Orders orders = orderService.getById(id);
-        orders.setStatus(OrderStatus.DELIVERING);
+        orders.setStatus(OrderStatusEnum.RIDER_DELIVERING);
         orders.setStartDeliveryTime(LocalDateTime.now());
         orders.setEstimatedDeliveryTime(LocalDateTime.now().plusMinutes(60));
         // 修复：保存订单更新到数据库
         orderService.updateById(orders);
-        return Result.success(id + "::" + OrderStatus.DELIVERING);
+        return Result.success(id);
     }
 
     /**
@@ -122,9 +122,9 @@ public class AdminOrderController {
     @PutMapping("/complete/{id}")
     public Result completeOrders(@PathVariable Long id) {
         Orders orders = orderService.getById(id);
-        orders.setStatus(OrderStatus.COMPLETED);
+        orders.setStatus(OrderStatusEnum.COMPLETED);
         orders.setDeliveryTime(LocalDateTime.now());
-        return Result.success(id + "::" + OrderStatus.COMPLETED);
+        return Result.success(id);
     }
 
 

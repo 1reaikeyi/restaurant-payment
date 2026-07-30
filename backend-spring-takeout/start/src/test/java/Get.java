@@ -1,5 +1,5 @@
 import org.junit.jupiter.api.Test;
-import pojo.entityenum.OrderStatus;
+import pojo.entityenum.OrderStatusEnum;
 
 import java.time.LocalDateTime;
 
@@ -8,7 +8,7 @@ public class Get {
     public void test() {
         System.out.println(LocalDateTime.now().toString());
 
-        System.out.println(OrderStatus.COMPLETED);
+        System.out.println(OrderStatusEnum.COMPLETED);
         // 今日 00:00:00
         LocalDateTime startOfDay = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
         System.out.println("startOfDay = " + startOfDay);

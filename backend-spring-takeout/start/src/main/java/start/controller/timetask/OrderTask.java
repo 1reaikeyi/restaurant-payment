@@ -6,8 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import pojo.entity.Orders;
-import pojo.entityenum.DeliveryStatus;
-import pojo.entityenum.OrderStatus;
+import pojo.entityenum.DeliveryStatusEnum;
+import pojo.entityenum.OrderStatusEnum;
 import service.ISevcive.OrderService;
 
 import java.time.LocalDateTime;
@@ -32,13 +32,13 @@ public class OrderTask {
     @Scheduled(cron = "0 0 * * * ?")
     public void processTimeoutOrder(){
         LambdaQueryWrapper<Orders> wrapper1 = new LambdaQueryWrapper<>();
-        wrapper1.eq(Orders::getStatus, OrderStatus.COMFIRM);
+        wrapper1.eq(Orders::getStatus, OrderStatusEnum.PENDING_RIDER_PICK);
         List<Orders> ordersList1 = orderService.list(wrapper1);
         if (!ordersList1.isEmpty()) {
             log.info("有待处理订单：{}", ordersList1);
         }
         LambdaQueryWrapper<Orders> wrapper2 = new LambdaQueryWrapper<>();
-        wrapper2.eq(Orders::getDeliveryStatus, DeliveryStatus.NOW);
+        wrapper2.eq(Orders::getDeliveryStatusEnum, DeliveryStatusEnum.NOW);
         List<Orders> ordersList2 = orderService.list(wrapper2);
         for (Orders orders : ordersList2) {
             LocalDateTime now = LocalDateTime.now();
