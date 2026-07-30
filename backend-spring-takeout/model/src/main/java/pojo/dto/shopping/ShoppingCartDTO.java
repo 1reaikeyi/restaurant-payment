@@ -13,7 +13,6 @@ public class ShoppingCartDTO implements Serializable {
     /**
      * 菜品id
      */
-    @TableField("dish_id")
     private Long dishId;
     
     /**
