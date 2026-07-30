@@ -28,21 +28,19 @@
 
 ------
 
-
-
 # 项目结构
 
 ```
-take-out/
-├── backend-spring-takeout/           # 后端代码
+restaurant-payment/
+├── backend-spring-restaurant/        # 后端代码
 ├── database-sql/                     # 数据库脚本目录
 │   ├── sql.txt                       # 数据库初始化SQL
-│   └── 数据库设计文档.md              # 完整的数据库设计说明
-├── frontend-vue-admin-takeout/       # 前端管理端（Vue 3）
+│   └── 数据库设计文档.md               # 完整的数据库设计说明
+├── frontend-vue-admin-restaurant/   # 前端管理端（Vue 3）
 └── 说明/                             # 项目说明文档
-    ├── 原型功能/                     # 前端原型截图
-    ├── 支付功能结果/                     # 支付流程截图
-    ├── postman测试文档/                # postman测试文档
+    ├── 原型功能/                      # 前端原型截图
+    ├── 支付功能结果/                   # 支付流程截图
+    ├── postman测试          # postman测试文档
     ├── 用户端接口.html       # 用户端API接口文档
     └── 管理端接口.html       # 管理端API接口文档
 ```
@@ -57,6 +55,8 @@ take-out/
 - Maven 3.8+
 
 ---
+
+![设计](说明\原型功能\设计.png)
 
 ## 一、用户与员工认证模块
 
@@ -92,52 +92,20 @@ Q：为什么不用 Session 而用 JWT？
 
 ### 编码阶段
 
-**核心代码实现**：
+**策略流程图**：
 
 ```java
-// UserController.java - 用户登录逻辑
-@PostMapping("/login")
-public Result login(@RequestBody UserLogInDTO userLogInDTO) {
-    User user = userService.login(userLogInDTO);
-    if (user == null) {
-        return Result.error(ErrorConstant.PASSWORD_ERROR);
-    }
-    // 构建Token载荷
-    Map<String, Object> claims = new HashMap<>();
-    claims.put(JwtClaimsConstant.USER_ID, user.getId());
-    claims.put(JwtClaimsConstant.USERNAME, user.getUserName());
-    ThreadLocalContextHolder.set(claims);
-    
-    // 生成Token（使用用户端密钥）
-    String token = JwtUtil.createJWT(jwtProperties.getUserSecretKey(), jwtProperties.getUserTtl(), claims);
-    
-    // 存入Redis
-    stringRedisTemplate.opsForValue().set(KEY_PREFIX + user.getId(), token, jwtProperties.getUserTtl(), TimeUnit.SECONDS);
-    return Result.success(user.getId() + "::" + token);
-}
+用户登录 → UserController/login() → 校验用户名密码 → 生成JWT Token（用户端密钥）→ Redis存储 → 返回Token
+管理员登录 → AdminEmployeeController/login() → 校验用户名密码 → 生成JWT Token（管理端密钥）→ Redis存储 → 返回Token
+请求拦截 → JwtTokenUserInterceptor/JwtTokenAdminInterceptor → 校验Token → 刷新有效期 → 放行请求
 ```
 
+**核心代码**：
+
 ```java
-// AdminEmployeeController.java - 管理员登录逻辑
-@PostMapping("/login")
-public Result login(@RequestBody EmployeeLoginDTO employeeLoginDTO) {
-    Employee employee = employeeService.login(employeeLoginDTO);
-    if (employee == null) {
-        return Result.error(ErrorConstant.PASSWORD_ERROR);
-    }
-    // 构建Token载荷
-    Map<String, Object> claims = new HashMap<>();
-    claims.put(JwtClaimsConstant.EMP_ID, employee.getId());
-    claims.put(JwtClaimsConstant.EMPNAME, employee.getUserName());
-    ThreadLocalContextHolder.set(claims);
-    
-    // 生成Token（使用管理端密钥）
-    String token = JwtUtil.createJWT(jwtProperties.getAdminSecretKey(), jwtProperties.getAdminTtl(), claims);
-    
-    // 存入Redis
-    stringRedisTemplate.opsForValue().set(KEY_PREFIX + employee.getId(), token, jwtProperties.getAdminTtl(), TimeUnit.SECONDS);
-    return Result.success(token);
-}
+// 用户端登录（双端独立JWT配置）
+String token = JwtUtil.createJWT(jwtProperties.getUserSecretKey(), jwtProperties.getUserTtl(), claims);
+stringRedisTemplate.opsForValue().set(KEY_PREFIX + user.getId(), token, jwtProperties.getUserTtl(), TimeUnit.SECONDS);
 ```
 
 ### 问题修复阶段
@@ -183,77 +151,27 @@ Q：菜品缓存为什么设置 30 分钟过期时间？
 
 ### 编码阶段
 
-**核心代码实现**：
+**策略流程图**：
 
 ```java
-// AdminDishController.java - 带缓存的菜品查询
-@GetMapping("/{id}")
-public Result getDishById(@PathVariable Long id) {
-    // 1. 拼接完整的 Redis Key
-    String key = DISH_CACHE_KEY + id;
-    
-    // 2. 先从 Redis 查询缓存
-    Object cached = redisTemplate.opsForValue().get(key);
-    if (cached != null) {
-        if (NULL_PLACEHOLDER.equals(cached)) {
-            redisTemplate.delete(key);
-        }
-        if (cached instanceof DishVO dishVO) {
-            return Result.success(dishVO);
-        }
-    }
-    
-    // 3. 缓存未命中，查询数据库
-    Dish dish = dishService.getById(id);
-    if (dish == null) {
-        return Result.error("菜品不存在");
-    }
-    
-    // 4. 关联查询口味信息
-    LambdaQueryWrapper<DishFlavor> wrapper = new LambdaQueryWrapper<>();
-    wrapper.eq(DishFlavor::getDishId, id).select(DishFlavor::getName, DishFlavor::getValue);
-    List<DishFlavor> dishFlavorList = dishFlavorService.list(wrapper);
-    
-    // 5. 组装 VO 对象
-    DishVO dishVO = BeanUtil.toBean(dish, DishVO.class);
-    dishVO.setFlavors(dishFlavorList);
-    
-    // 6. 设置缓存（30分钟）
-    redisTemplate.opsForValue().set(key, dishVO, EXISTS_TIME, TimeUnit.MINUTES);
-    return Result.success(dishVO);
-}
+查询菜品 → AdminDishController/{id} → Redis查询缓存
+    ├─ 缓存存在 → 直接返回缓存数据（DishVO含口味）
+    └─ 缓存不存在 → MySQL查询菜品+口味 → 组装DishVO → 设置Redis缓存（30分钟）→ 返回数据
+更新菜品 → AdminDishController/put → 更新MySQL菜品+口味 → 删除Redis缓存 → 返回结果
+删除菜品 → AdminDishController/delete → 校验状态（仅停售可删）→ 删除MySQL → 删除Redis缓存 → 返回结果
 ```
 
+**核心代码**：
+
 ```java
-// AdminDishController.java - 更新菜品并删除缓存
-@PutMapping
-public Result updateDish(@RequestBody DishDTO dishDTO) {
-    // 更新菜品信息
-    Dish dish = Dish.builder()
-            .id(dishDTO.getId())
-            .name(dishDTO.getName()).categoryId(dishDTO.getCategoryId()).price(dishDTO.getPrice())
-            .image(dishDTO.getImage()).description(dishDTO.getDescription())
-            .status(dishDTO.getStatus())
-            .build();
-    dishService.updateById(dish);
-    
-    // 删除旧口味，保存新口味
-    LambdaQueryWrapper<DishFlavor> flavorRemove = new LambdaQueryWrapper<>();
-    flavorRemove.eq(DishFlavor::getDishId, dish.getId());
-    dishFlavorService.remove(flavorRemove);
-    List<DishFlavor> flavorEntities = dishDTO.getFlavors().stream()
-            .map(f -> DishFlavor.builder()
-                    .dishId(dish.getId())
-                    .name(f.getName())
-                    .value(f.getValue())
-                    .build())
-            .toList();
-    dishFlavorService.saveBatch(flavorEntities);
-    
-    // 删除菜品缓存，下次查询时重新缓存
-    redisTemplate.delete(DISH_CACHE_KEY + dish.getId());
-    return Result.success("updateDish::" + dish.getId());
+// AdminDishController.java - 菜品缓存查询（30分钟过期）
+String key = DISH_CACHE_KEY + id;
+Object cached = redisTemplate.opsForValue().get(key);
+if (cached instanceof DishVO dishVO) {
+    return Result.success(dishVO);
 }
+// 缓存未命中，查询数据库并设置缓存
+redisTemplate.opsForValue().set(key, dishVO, EXISTS_TIME, TimeUnit.MINUTES);
 ```
 
 ### 问题修复阶段
@@ -306,55 +224,27 @@ Q：套餐删除时为什么用 `allEntries = true` 清除所有缓存？
 
 ### 编码阶段
 
-**核心代码实现**：
+**策略流程图**：
 
 ```java
-// AdminSetmealController.java - 添加套餐（自动清除缓存）
-@PostMapping
-@CacheEvict(cacheNames = "setmeal", allEntries = true)
-public Result addSetmeal(@RequestBody SetmealDTO setmealDTO) {
-    // 检查套餐名称是否已存在
-    LambdaQueryWrapper<Setmeal> setmealWrapper = new LambdaQueryWrapper<>();
-    setmealWrapper.eq(Setmeal::getName, setmealDTO.getName());
-    Setmeal check_setmeal = setmealService.getOne(setmealWrapper);
-    if (check_setmeal != null) {
-        return Result.error("套餐名称已存在");
-    }
-    
-    // 保存套餐主表
-    Setmeal setmeal = BeanUtil.toBean(setmealDTO, Setmeal.class);
-    setmeal.setStatus(StatusConstant.ENABLE);
-    setmealService.save(setmeal);
-    
-    // 保存套餐菜品关联数据
-    List<SetmealDish> setmealDishesList = setmealDTO.getSetmealDishes().stream()
-            .map(setmealDish -> SetmealDish.builder()
-                    .setmealId(setmeal.getId())
-                    .copies(setmealDish.getCopies())
-                    .dishId(setmealDish.getDishId())
-                    .name(setmealDish.getName())
-                    .build())
-            .collect(Collectors.toList());
-    setmealDishService.saveBatch(setmealDishesList);
-    return Result.success("addSetmeal::" + setmeal.getId());
-}
+添加套餐 → AdminSetmealController/post → 校验名称唯一性 → MySQL保存套餐+套餐菜品关联 → @CacheEvict清除所有缓存 → 返回结果
+查询套餐 → AdminSetmealController/{id} → @Cacheable缓存查询 → Redis缓存命中返回 → 未命中查询MySQL → 返回结果
+更新套餐 → AdminSetmealController/put → 更新MySQL → @CacheEvict清除缓存 → 返回结果
+上下架套餐 → AdminSetmealController/status → 更新状态 → @CacheEvict清除单个缓存 → 返回结果
 ```
 
+**核心代码**：
+
 ```java
-// AdminSetmealController.java - 查询套餐详情（自动缓存）
+// AdminSetmealController.java - Spring Cache注解缓存
 @GetMapping("/{id}")
 @Cacheable(cacheNames = "setmeal", key = "#id")
 public Result readSetmeal(@PathVariable Long id) {
     Setmeal setmeal = setmealService.getById(id);
-    if (setmeal == null) {
-        return Result.error("套餐不存在");
-    }
-    
     // 关联查询套餐包含的菜品
-    LambdaQueryWrapper<SetmealDish> setmealDishWrapper = new LambdaQueryWrapper<>();
-    setmealDishWrapper.eq(SetmealDish::getSetmealId, id);
-    List<SetmealDish> setmealDishList = setmealDishService.list(setmealDishWrapper);
-    return Result.success(setmealDishList);
+    LambdaQueryWrapper<SetmealDish> wrapper = new LambdaQueryWrapper<>();
+    wrapper.eq(SetmealDish::getSetmealId, id);
+    return Result.success(setmealDishService.list(wrapper));
 }
 ```
 
@@ -406,66 +296,25 @@ Q：购物车去重逻辑为什么要同时匹配用户ID、菜品ID和口味？
 
 ### 编码阶段
 
-**核心代码实现**：
+**策略流程图**：
 
 ```java
-// UserShoppingCartController.java - 添加购物车（支持菜品和套餐）
-@PostMapping
-public Result createShoppingCart(@RequestBody ShoppingCartDTO shoppingCartDTO) {
-    ShoppingCart shoppingCart = new ShoppingCart();
-    Map<String, Object> claims = ThreadLocalContextHolder.get();
-    Long userId = Long.parseLong(claims.get(JwtClaimsConstant.USER_ID).toString());
-    shoppingCart.setUserId(userId);
-    
-    // 判断是菜品还是套餐
-    if (shoppingCartDTO.getSetmealId() == null) {
-        // 菜品处理逻辑
-        shoppingCart.setSetmealId(0L);
-        Dish dish = dishService.getById(shoppingCartDTO.getDishId());
-        shoppingCart.setDishId(shoppingCartDTO.getDishId());
-        shoppingCart.setDishFlavor(shoppingCartDTO.getDishFlavor());
-        shoppingCart.setImage(dish.getImage());
-        shoppingCart.setName(dish.getName());
-        
-        // 去重查询：同用户+同菜品+同口味
-        LambdaQueryWrapper<ShoppingCart> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ShoppingCart::getUserId, userId)
-                .eq(ShoppingCart::getDishId, shoppingCartDTO.getDishId())
-                .eq(ShoppingCart::getDishFlavor, shoppingCartDTO.getDishFlavor());
-        ShoppingCart same_shoppingCart = shoppingCartService.getOne(wrapper);
-        
-        if (same_shoppingCart != null) {
-            // 已存在，更新数量和金额
-            Long newNumber = same_shoppingCart.getNumber() + shoppingCartDTO.getNumber();
-            BigDecimal newAmount = same_shoppingCart.getAmount().add(dish.getPrice().multiply(BigDecimal.valueOf(shoppingCartDTO.getNumber())));
-            same_shoppingCart.setNumber(newNumber);
-            same_shoppingCart.setAmount(newAmount);
-            shoppingCartService.updateById(same_shoppingCart);
-        } else {
-            // 不存在，新增记录
-            shoppingCart.setNumber(shoppingCartDTO.getNumber());
-            shoppingCart.setAmount(dish.getPrice().multiply(BigDecimal.valueOf(shoppingCartDTO.getNumber())));
-            shoppingCartService.save(shoppingCart);
-        }
-        return Result.success("createShoppingCart::" + shoppingCart.getId());
-    }
-    
-    // 套餐处理逻辑（类似菜品）
-    // ...
-}
+添加购物车 → UserShoppingCartController/post → 判断菜品/套餐 → 去重查询（userId+dishId+dishFlavor）
+    ├─ 已存在 → 更新数量和金额（BigDecimal计算）→ 返回结果
+    └─ 不存在 → 新增购物车记录 → 返回结果
+查询购物车列表 → UserShoppingCartController/list → MySQL按userId查询 → 返回购物车列表
+清空购物车 → UserShoppingCartController/delete/all → MySQL删除用户所有记录 → 返回结果
 ```
 
+**核心代码**：
+
 ```java
-// UserShoppingCartController.java - 清空购物车
-@DeleteMapping("/all")
-public Result clean() {
-    Map<String, Object> map = ThreadLocalContextHolder.get();
-    Long userId = Long.parseLong(map.get(JwtClaimsConstant.USER_ID).toString());
-    LambdaQueryWrapper<ShoppingCart> Wrapper = new LambdaQueryWrapper<>();
-    Wrapper.eq(ShoppingCart::getUserId, userId);
-    shoppingCartService.remove(Wrapper);
-    return Result.success("clean");
-}
+// UserShoppingCartController.java - 购物车去重逻辑（同用户+同菜品+同口味）
+LambdaQueryWrapper<ShoppingCart> wrapper = new LambdaQueryWrapper<>();
+wrapper.eq(ShoppingCart::getUserId, userId)
+        .eq(ShoppingCart::getDishId, dishId)
+        .eq(ShoppingCart::getDishFlavor, dishFlavor);
+ShoppingCart sameCart = shoppingCartService.getOne(wrapper);
 ```
 
 ### 问题修复阶段
@@ -508,51 +357,28 @@ Q：为什么支付成功后需要更新订单状态？
 
 ### 编码阶段
 
-**核心代码实现**：
+**策略流程图**：
 
 ```java
-// UserOrderController.java - 下单功能
-@PostMapping("/submit")
-public Result submitOrder(@RequestBody OrdersDTO orderDTO) {
-    Orders orders = BeanUtil.toBean(orderDTO, Orders.class);
-    orders.setStatus(OrderStatusEnum.PENDING_PAYMENT);
-    orderService.save(orders);
-    
-    // 保存订单明细
-    Long orderId = orders.getId();
-    List<OrderDetail> orderDetailList = orderDTO.getOrderDetails()
-                .stream()
-                .map(orderDetail -> {
-                    OrderDetail orderDetail1 = BeanUtil.toBean(orderDetail, OrderDetail.class);
-                    orderDetail1.setOrderId(orderId);
-                    return orderDetail1;
-                })
-                .toList();
-    orderDetailService.saveBatch(orderDetailList);
-    return Result.success("submitOrder::" + orders.getId());
-}
+用户下单 → UserOrderController/submit → 设置状态为待支付 → MySQL保存订单+订单明细 → 返回订单ID
+发起支付 → UserOrderController/pay → 更新状态为待商家接单 → 构建支付宝表单 → 返回支付页面
+同步回调 → AlipayController/return → 验签 → 返回支付成功页面
+异步通知 → AlipayController/notify → 验签 → 校验金额 → 更新订单状态 → 返回成功
+取消订单 → UserOrderController/cancel → 更新状态为已取消 → 调用支付宝退款 → 返回结果
 ```
 
+**核心代码**：
+
 ```java
-// UserOrderController.java - 支付宝支付
-@GetMapping("/pay/{id}")
-public void payOrder(@PathVariable Long id, HttpServletResponse response) throws Exception {
-    Orders payOrder = orderService.getById(id);
-    // 更新订单状态为待商家接单
-    payOrder.setStatus(OrderStatusEnum.PENDING_MERCHANT_ACCEPT);
-    payOrder.setPayMethod(1L); // 1->支付宝，2是微信
-    orderService.updateById(payOrder);
-    
-    // 构建支付参数
-    PayDTO payDTO = new PayDTO(payOrder.getId().toString(), payOrder.getAmount(), payOrder.getConsignee());
-    String form = alipayService.createPagePayForm(payDTO);
-    
-    // 返回支付宝支付表单
-    response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-    response.setContentType("text/html;charset=UTF-8");
-    response.getWriter().write(form);
-    response.getWriter().flush();
-}
+// UserOrderController.java - 下单与支付流程
+orders.setStatus(OrderStatusEnum.PENDING_PAYMENT);  // 待支付
+orderService.save(orders);
+// ...保存订单明细...
+
+// 支付时更新状态
+payOrder.setStatus(OrderStatusEnum.PENDING_MERCHANT_ACCEPT);  // 待商家接单
+payOrder.setPayMethod(1L);  // 1=支付宝
+orderService.updateById(payOrder);
 ```
 
 ### 问题修复阶段
@@ -617,55 +443,29 @@ Q：为什么用 Map 存储 Session？
 
 ### 编码阶段
 
-**核心代码实现**：
+**策略流程图**：
 
 ```java
-// WebSocketServer.java - WebSocket服务
-@Component
-@ServerEndpoint("/websocket/{id}")
-public class WebSocketServer {
-    
-    // 存放会话对象，key为客户端ID
-    private static Map<String, Session> sessionMap = new HashMap();
-    
-    /**
-     * 连接建立成功调用的方法
-     */
-    @OnOpen
-    public void onOpen(Session session, @PathParam("id") String id) {
-        System.out.println("客户端：" + id + "建立连接");
-        sessionMap.put(id, session);
-    }
-    
-    /**
-     * 收到客户端消息后调用的方法
-     */
-    @OnMessage
-    public void onMessage(String message, @PathParam("id") String id) {
-        System.out.println("收到来自客户端：" + id + "的信息:" + message);
-    }
-    
-    /**
-     * 连接关闭调用的方法
-     */
-    @OnClose
-    public void onClose(@PathParam("id") String id) {
-        System.out.println("连接断开:" + id);
-        sessionMap.remove(id);
-    }
-    
-    /**
-     * 群发消息
-     */
-    public void sendToAllClient(String message) {
-        Collection<Session> sessions = sessionMap.values();
-        for (Session session : sessions) {
-            try {
-                session.getBasicRemote().sendText(message);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
+客户端连接 → WebSocketServer/onOpen → sessionMap存储Session → 连接成功
+服务器推送 → WebSocketServer/sendToAllClient → 遍历所有Session → 发送消息
+定向推送 → WebSocketServer/sendToClient → 根据ID查找Session → 发送消息
+客户端断开 → WebSocketServer/onClose → sessionMap移除Session → 连接关闭
+```
+
+**核心代码**：
+
+```java
+// WebSocketServer.java - WebSocket会话管理
+private static Map<String, Session> sessionMap = new HashMap<>();
+
+@OnOpen
+public void onOpen(Session session, @PathParam("id") String id) {
+    sessionMap.put(id, session);  // 存储客户端Session
+}
+
+public void sendToAllClient(String message) {
+    for (Session session : sessionMap.values()) {
+        session.getBasicRemote().sendText(message);  // 群发消息
     }
 }
 ```
@@ -708,25 +508,25 @@ Q：文件命名为什么用 UUID？
 
 ### 编码阶段
 
-**核心代码实现**：
+**策略流程图**：
 
 ```java
-// OSSFileController.java - 阿里云OSS文件上传（示例）
-@PostMapping("/upload")
-public Result upload(MultipartFile file) {
-    String originalFilename = file.getOriginalFilename();
-    // 使用UUID生成唯一文件名
-    String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-    String objectName = UUID.randomUUID().toString() + extension;
-    
-    // 调用AliOssUtil上传到阿里云OSS
-    String url = aliOssUtil.uploadFile(objectName, file.getInputStream());
-    
-    Map<String, String> fileResult = new HashMap<>();
-    fileResult.put("url", url);
-    fileResult.put("filename", originalFilename);
-    return Result.success(fileResult);
-}
+文件上传（本地）→ LocalFileController/upload → UUID生成文件名 → 保存到本地目录 → 返回本地访问URL
+文件上传（阿里云OSS）→ OSSFileController/upload → UUID生成文件名 → AliOssUtil上传 → 返回CDN访问URL
+Excel导出 → ExcelReportController/export → EasyExcel写入数据 → 返回Excel文件流
+Excel导入 → ExcelReportController/import → EasyExcel读取数据 → MySQL批量保存 → 返回结果
+```
+
+**核心代码**：
+
+```java
+// OSSFileController.java - 文件上传（UUID命名）
+String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+String objectName = UUID.randomUUID().toString() + extension;
+String url = aliOssUtil.uploadFile(objectName, file.getInputStream());
+
+// ExcelReportController.java - EasyExcel导出报表
+EasyExcel.write(response.getOutputStream(), UserStatistics.class).sheet("用户统计").doWrite(data);
 ```
 
 ### 问题修复阶段
@@ -812,128 +612,39 @@ public ChatMemory chatMemory(ChatMemoryRepository chatMemoryRepository) {
 
 ### 编码阶段
 
-**核心代码实现**：
+**策略流程图**：
 
 ```java
-// SeeController.java - AI 热线入口
-@RestController
-@RequestMapping("/ai")
-public class SeeController {
-    
-    @PostMapping("/see")
-    public Object flow(@RequestParam String question,
-                       @RequestParam MultipartFile file) throws Exception {
-        CompiledGraph compiledGraph = nodeLink.toSee();
-        // 将文件转为 Base64 字符串再传入 state
-        String fileBase64 = Base64.getEncoder().encodeToString(file.getBytes());
-        return compiledGraph.invoke(Map.of("question", question, "file", fileBase64))
-                .map(overAllState -> "==>1.visual>" + overAllState.value("visualResult").orElse("null") +
-                        "==>2.tool>" + overAllState.value("toolResult").orElse("null"))
-                .orElse("执行失败");
-    }
-}
+用户请求 → SeeController/see → 图片转Base64 → 传入StateGraph
+    ↓
+node1 - VisualFunction → 调用多模态模型识别食材/饮品 → State.visualResult = "鱼、虾、啤酒..."
+    ↓
+node2 - ToolFunction → 调用工具查询 → 大模型选择SetmealTool方法 → 数据库查询套餐 → State.toolResult = 匹配的套餐列表
+    ↓
+返回结果 → 组装visualResult和toolResult → 返回给用户
 ```
 
-```java
-// VisualFunction.java - 视觉识别节点
-@Service
-public class VisualFunction implements NodeAction {
-    @Resource(name = "visualChatClient")
-    private ChatClient visualClient;
-
-    @Override
-    public Map<String, Object> apply(OverAllState state) throws Exception {
-        String base64 = (String) state.value("file").orElse("文件为空");
-        Media media = new Media(MimeTypeUtils.IMAGE_JPEG, 
-                URI.create("data:image/jpeg;base64," + base64));
-        String result = visualClient.prompt()
-                .user(promptUserSpec -> promptUserSpec.text("识别有哪些食物,饮料？").media(media))
-                .call()
-                .content();
-        return Map.of("visualResult", result != null ? result : "没有识别到内容");
-    }
-}
-```
+**核心代码**：
 
 ```java
-// ToolFunction.java - 工具查询节点
-@Service
-public class ToolFunction implements NodeAction {
-    @Resource(name = "toolClient")
-    private ChatClient toolClient;
+// SeeController.java - AI热线入口（图片转Base64传入Graph）
+String fileBase64 = Base64.getEncoder().encodeToString(file.getBytes());
+return compiledGraph.invoke(Map.of("question", question, "file", fileBase64));
 
-    @Override
-    public Map<String, Object> apply(OverAllState state) throws Exception {
-        String input = state.value("visualResult").toString();
-        String result = toolClient.prompt()
-                .user(promptUserSpec -> promptUserSpec.text(input))
-                .call()
-                .content();
-        return Map.of("toolResult", result != null ? result : "没有查询到内容");
-    }
+// SetmealTool.java - 视觉识别核心衔接（按描述模糊匹配）
+@Tool(description = "根据图片识别出的食材关键词，模糊匹配套餐描述")
+public List<Setmeal> queryByDescription(SetmealToolParam param) {
+    LambdaQueryWrapper<Setmeal> wrapper = new LambdaQueryWrapper<>();
+    wrapper.like(Setmeal::getDescription, param.getDescription().trim());
+    return setmealMapper.selectList(wrapper);
 }
-```
 
-```java
-// SetmealTool.java - AI 工具函数（核心查询能力）
-@Component
-public class SetmealTool {
-
-    @Tool(description = "按套餐ID精确查询，返回单个套餐信息")
-    public Setmeal queryById(@ToolParam(description = "套餐ID（必填，精确匹配）") Long id) {
-        return setmealMapper.selectById(id);
-    }
-
-    @Tool(description = "按套餐名称模糊查询，支持关键词匹配")
-    public List<Setmeal> queryByName(@ToolParam(description = "套餐名称关键词") String name) {
-        LambdaQueryWrapper<Setmeal> wrapper = new LambdaQueryWrapper<>();
-        wrapper.like(Setmeal::getName, name);
-        return setmealMapper.selectList(wrapper);
-    }
-
-    @Tool(description = "根据图片识别出的食材、饮品关键词，模糊匹配套餐的菜品描述字段")
-    public List<Setmeal> queryByDescription(SetmealToolParam setmealToolParam) {
-        LambdaQueryWrapper<Setmeal> wrapper = new LambdaQueryWrapper<>();
-        String key = setmealToolParam.getDescription().trim();
-        if (!key.isEmpty()) {
-            wrapper.like(Setmeal::getDescription, key);
-        }
-        return setmealMapper.selectList(wrapper);
-    }
-    // 更多查询方法：queryByCategoryId, queryByPriceRange, queryByStatus, queryByMultiCondition...
-}
-```
-
-```java
-// NodeLink.java - 工作流编排
-@Configuration
-public class NodeLink {
-    @Bean("see")
-    public CompiledGraph toSee() {
-        StateGraph graph = new StateGraph("see", strategyFactory);
-        graph.addNode("node1", AsyncNodeAction.node_async(visualFunction));
-        graph.addNode("node2", AsyncNodeAction.node_async(toolFunction));
-        graph.addEdge(StateGraph.START, "node1");
-        graph.addEdge("node1", "node2");
-        graph.addEdge("node2", StateGraph.END);
-        return graph.compile();
-    }
-}
-```
-
-```java
-// ToolConfiguration.java - 工具 ChatClient 配置
-@Configuration
-public class ToolConfiguration {
-    @Bean
-    public ChatClient toolClient(OpenAiChatModel model, Advisor loggerAdvisor,
-                                 Advisor messageMemoryAdvisor, SetmealTool setmealTool) {
-        return ChatClient.builder(model)
-                .defaultAdvisors(loggerAdvisor, messageMemoryAdvisor)
-                .defaultTools(setmealTool)  // 注册 AI 工具函数
-                .build();
-    }
-}
+// NodeLink.java - StateGraph工作流编排
+graph.addNode("node1", AsyncNodeAction.node_async(visualFunction));
+graph.addNode("node2", AsyncNodeAction.node_async(toolFunction));
+graph.addEdge(StateGraph.START, "node1");
+graph.addEdge("node1", "node2");
+graph.addEdge("node2", StateGraph.END);
 ```
 
 ### 问题修复阶段
