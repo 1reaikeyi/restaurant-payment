@@ -34,7 +34,7 @@ public class AdminDishController {
     private RedisTemplate<String, Object> redisTemplate;
 
     private static final String DISH_CACHE_KEY = "dish:id:";
-    private static final int EXISTS_TIME = 50;
+    private static final int EXISTS_TIME = 30;
     private static final String NULL_PLACEHOLDER = "NULL";
 
     @PostMapping

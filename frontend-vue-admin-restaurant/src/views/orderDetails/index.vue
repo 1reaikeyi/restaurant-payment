@@ -42,18 +42,12 @@
 
     <!-- 订单列表 -->
     <el-table :data="tableData" stripe v-loading="loading" class="order-table">
-      <el-table-column prop="number" label="订单号" min-width="150" />
-      <el-table-column
-        v-if="[2, 3, 4].includes(activeTab)"
-        prop="orderDishes"
-        label="订单菜品"
-        min-width="200"
-        show-overflow-tooltip
-      />
+      <el-table-column prop="id" label="订单号" min-width="150" />
+      <!-- 订单菜品列已移除，改为在详情弹窗中展示完整菜品信息 -->
       <el-table-column
         v-if="activeTab === 0"
         label="订单状态"
-        min-width="100"
+        min-width="200"
       >
         <template #default="{ row }">
           <el-tag :type="getStatusType(row.status)" effect="light">
@@ -72,7 +66,7 @@
         v-if="[0, 5, 6, 7].includes(activeTab)"
         prop="phone"
         label="手机号"
-        min-width="120"
+        min-width="100"
       />
       <el-table-column
         v-if="[0, 2, 3, 4, 5, 6, 7].includes(activeTab)"
@@ -85,7 +79,7 @@
         v-if="[0, 6].includes(activeTab)"
         prop="orderTime"
         label="下单时间"
-        min-width="160"
+        min-width="200"
       />
       <el-table-column
         v-if="activeTab === 6"
@@ -103,13 +97,13 @@
         v-if="activeTab === 5"
         prop="deliveryTime"
         label="送达时间"
-        min-width="160"
+        min-width="100"
       />
       <el-table-column
         v-if="[2, 3, 4].includes(activeTab)"
         prop="estimatedDeliveryTime"
         label="预计送达时间"
-        min-width="160"
+        min-width="100"
       />
       <el-table-column
         v-if="[0, 2, 5].includes(activeTab)"
@@ -218,7 +212,7 @@
           <!-- 订单状态头部 -->
           <div class="detail-header">
             <div class="header-left">
-              <span class="order-number">订单号：{{ detailData.number }}</span>
+              <span class="order-number">订单号：{{ detailData.id }}</span>
               <el-tag :type="getStatusType(detailData.status)">
                 {{ getStatusText(detailData.status) }}
               </el-tag>
@@ -442,11 +436,16 @@ const searchForm = reactive({
   phone: ''
 })
 
-// 订单统计
+// 订单统计 - 适配后端新的统计字段
 const orderStatics = reactive({
-  toBeConfirmed: 0,
-  confirmed: 0,
-  deliveryInProgress: 0
+  pendingPayment: 0,        // 待支付
+  toBeConfirmed: 0,         // 待商家接单
+  merchantCooking: 0,       // 商家制作中
+  pendingRiderPick: 0,      // 待骑手取餐
+  riderDelivering: 0,       // 骑手配送中
+  riderArrived: 0,          // 骑手已送达
+  completed: 0,             // 订单已完成
+  cancelled: 0              // 订单已取消
 })
 
 // 详情弹窗
@@ -479,42 +478,45 @@ const cancelOrderReasonList = ref([
   { value: 0, label: '自定义原因' }
 ])
 
-// 订单标签页
+// 订单标签页 - 使用后端返回的完整统计数据
 const orderTabs = computed(() => [
   { label: '全部订单', value: 0, num: 0 },
-  { label: '待付款', value: 1, num: 0 },
-  { label: '已支付(待接单)', value: 2, num: orderStatics.toBeConfirmed },
-  { label: '制作中', value: 3, num: orderStatics.confirmed },
-  { label: '正在派送', value: 4, num: orderStatics.deliveryInProgress },
-  { label: '已送达', value: 5, num: 0 },
-  { label: '已取消', value: 6, num: 0 },
-  { label: '退款', value: 7, num: 0 }
+  { label: '等待支付', value: 1, num: orderStatics.pendingPayment },
+  { label: '等待商家接单', value: 2, num: orderStatics.toBeConfirmed },
+  { label: '商家接单制作中', value: 3, num: orderStatics.merchantCooking },
+  { label: '待骑手取餐', value: 4, num: orderStatics.pendingRiderPick },
+  { label: '骑手已取餐', value: 5, num: orderStatics.riderDelivering },
+  { label: '骑手已送达', value: 6, num: orderStatics.riderArrived },
+  { label: '订单已完成', value: 7, num: orderStatics.completed },
+  { label: '订单已取消', value: 8, num: orderStatics.cancelled }
 ])
 
 // 获取订单状态文本
 const getStatusText = (status) => {
   const statusMap = {
-    'PENDING': '待付款',
-    'ACCEPTED': '已支付,寻找商家',
-    'COMFIRM': '制作中',
-    'DELIVERING': '正在派送',
-    'COMPLETED': '已送达',
-    'CANCELLED': '取消支付',
-    'REFUNDED': '退款'
-  }
-  return statusMap[status] || '未知'
-}
+    'PENDING_PAYMENT': "待支付：下单未付款",
+    'PENDING_MERCHANT_ACCEPT': "待商家接单：已付款，商家还没接单",
+    'MERCHANT_COOKING': "商家接单,制作中：商家确认接单，正在做菜",
+    'PENDING_RIDER_PICK': "待骑手取餐：商家出餐完成，骑手还没到店",
+    'RIDER_DELIVERING': "骑手已取餐，配送中：骑手拿到餐，在路上，实时看定位",
+    'RIDER_ARRIVED': "骑手已送达：骑手点送达，等待用户确认",
+    'COMPLETED': "订单已完成：系统自动确认收货",
+    'CANCELLED': "订单已取消：未接单退款、商家拒单、超时取消、售后全额退款"
+  };
+  return statusMap[status] || '未知';
+};
 
 // 获取订单状态标签类型
 const getStatusType = (status) => {
   const typeMap = {
-    'PENDING': 'info',
-    'ACCEPTED': 'warning',
-    'COMFIRM': 'warning',
-    'DELIVERING': 'primary',
-    'COMPLETED': 'success',
-    'CANCELLED': 'info',
-    'REFUNDED': 'danger'
+    'PENDING_PAYMENT': 'info',          // 待支付
+    'PENDING_MERCHANT_ACCEPT': 'warning',// 待商家接单
+    'MERCHANT_COOKING': 'warning',      // 商家制作中
+    'PENDING_RIDER_PICK': 'primary',    // 待骑手取餐
+    'RIDER_DELIVERING': 'primary',      // 配送中
+    'RIDER_ARRIVED': 'primary',         // 骑手已送达
+    'COMPLETED': 'success',             // 订单已完成
+    'CANCELLED': 'danger'               // 订单已取消
   }
   return typeMap[status] || 'info'
 }
@@ -590,13 +592,14 @@ const fetchOrderList = async () => {
 // 将后端状态字符串转换为数字
 const convertStatusToNum = (status) => {
   const statusMap = {
-    'PENDING': 1,
-    'ACCEPTED': 2,
-    'COMFIRM': 3,
-    'DELIVERING': 4,
-    'COMPLETED': 5,
-    'CANCELLED': 6,
-    'REFUNDED': 7
+    'PENDING_PAYMENT': 1,
+    'PENDING_MERCHANT_ACCEPT': 2,
+    'MERCHANT_COOKING': 3,
+    'PENDING_RIDER_PICK': 4,
+    'RIDER_DELIVERING': 5,
+    'RIDER_ARRIVED': 6,
+    'COMPLETED': 7,
+    'CANCELLED': 8
   }
   return statusMap[status] || 0
 }
@@ -617,14 +620,20 @@ const handleSearch = () => {
   fetchOrderList()
 }
 
-// 查看详情
+// 查看详情 - 适配后端新的返回结构（Map包含order和orderDetailList）
 const handleViewDetail = async (row) => {
   try {
     const res = await getOrderDetail(row.id)
     if (res?.data) {
+      // 后端返回结构：{ order: {...}, orderDetailList: [...] }
+      const orderData = res.data.order || {}
+      const orderDetailList = res.data.orderDetailList || []
+      
+      // 合并订单主信息和明细列表到detailData中
       detailData.value = {
-        ...res.data,
-        statusNum: convertStatusToNum(res.data.status)
+        ...orderData,
+        orderDetailList: orderDetailList,
+        statusNum: convertStatusToNum(orderData.status)
       }
       rowData.value = row
       detailVisible.value = true

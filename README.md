@@ -20,11 +20,11 @@
 
 **支付流程**：
 
-| 集成到order  | ![支付](说明/支付功能/支付宝1.png) |
-| ------------ | ---------------------------------- |
-| 支付过程     | ![支付](说明/支付功能/支付宝2.png) |
-| 同步支付成功 | ![支付](说明/支付功能/支付宝3.png) |
-| 异步检验     | ![支付](说明/支付功能/支付宝4.png) |
+| 集成到order  | ![支付](说明/支付功能结果/支付宝1.png) |
+| ------------ | -------------------------------------- |
+| 支付过程     | ![支付](说明/支付功能结果/支付宝2.png) |
+| 同步支付成功 | ![支付](说明/支付功能结果/支付宝3.png) |
+| 异步检验     | ![支付](说明/支付功能结果/支付宝4.png) |
 
 ------
 
@@ -41,7 +41,8 @@ take-out/
 ├── frontend-vue-admin-takeout/       # 前端管理端（Vue 3）
 └── 说明/                             # 项目说明文档
     ├── 原型功能/                     # 前端原型截图
-    ├── 支付功能/                     # 支付流程截图
+    ├── 支付功能结果/                     # 支付流程截图
+    ├── postman测试文档/                # postman测试文档
     ├── 用户端接口.html       # 用户端API接口文档
     └── 管理端接口.html       # 管理端API接口文档
 ```
@@ -82,9 +83,11 @@ Q：为什么不用 Session 而用 JWT？
 **架构设计**：
 ```
 用户请求 → JwtTokenUserInterceptor → JwtUtil校验Token → Controller → Service → Mapper → MySQL
+         					↓
+             		 Redis（存储Token）
 管理员请求 → JwtTokenAdminInterceptor → JwtUtil校验Token → Controller → Service → Mapper → MySQL
-                      ↓
-              Redis（存储Token）
+                     	 	↓
+            		  Redis（存储Token）
 ```
 
 ### 编码阶段
@@ -164,8 +167,8 @@ public Result login(@RequestBody EmployeeLoginDTO employeeLoginDTO) {
 Q：为什么用手动 Redis 缓存而不是 Spring Cache 注解？
 > A：手动控制 Redis 操作更灵活，可以自定义缓存策略、处理空值缓存、精确控制缓存失效时机。菜品查询需要关联口味数据，手动缓存可以一次性缓存完整的 DishVO 对象。
 
-Q：菜品缓存为什么设置 50 分钟过期时间？
-> A：菜品信息相对稳定，不会频繁变更。50 分钟的过期时间可以有效减少数据库查询压力，同时在菜品更新时主动删除缓存保证数据一致性。
+Q：菜品缓存为什么设置 30 分钟过期时间？
+> A：菜品信息相对稳定，不会频繁变更。30 分钟的过期时间可以有效减少数据库查询压力，同时在菜品更新时主动删除缓存保证数据一致性。
 
 **缓存策略流程图**：
 ```
@@ -173,7 +176,7 @@ Q：菜品缓存为什么设置 50 分钟过期时间？
     ↓
 缓存存在？
     ├─ 是 → 直接返回缓存数据（DishVO包含口味信息）
-    └─ 否 → 查询数据库（菜品+口味）→ 设置缓存（50分钟）→ 返回数据
+    └─ 否 → 查询数据库（菜品+口味）→ 设置缓存→ 返回数据
 
 更新/删除菜品 → 主动删除缓存
 ```
@@ -215,7 +218,7 @@ public Result getDishById(@PathVariable Long id) {
     DishVO dishVO = BeanUtil.toBean(dish, DishVO.class);
     dishVO.setFlavors(dishFlavorList);
     
-    // 6. 设置缓存（50分钟）
+    // 6. 设置缓存（30分钟）
     redisTemplate.opsForValue().set(key, dishVO, EXISTS_TIME, TimeUnit.MINUTES);
     return Result.success(dishVO);
 }
@@ -552,23 +555,6 @@ public void payOrder(@PathVariable Long id, HttpServletResponse response) throws
 }
 ```
 
-```java
-// AlipayController.java - 支付接口
-@GetMapping("/order")
-public void orderPay(PayDTO payDTO, HttpServletResponse response) throws Exception {
-    String form = alipayService.createPagePayForm(payDTO);
-    response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-    response.setContentType("text/html;charset=UTF-8");
-    response.getWriter().write(form);
-    response.getWriter().flush();
-}
-
-@PostMapping("/refund")
-public AlipayTradeRefundResponse refundOrder(RefundDTO refundDTO) throws Exception {
-    return alipayService.refund(refundDTO);
-}
-```
-
 ### 问题修复阶段
 
 **问题**：订单取消后无法退款
@@ -756,14 +742,14 @@ response.setHeader("Content-Disposition", "attachment;filename=" +
 
 ---
 
-## 八、AI 热线模块（ai-hotline）
+## 八、AI 热线模块（ai-see）
 
 ### 需求阶段
 
-**需求背景**：用户想通过拍照的方式快速找到心仪的套餐。比如在餐厅看到别人桌上的菜，拍下来就能识别出是什么菜，并推荐对应的套餐。
+**需求背景**：用户想通过拍照的方式快速找到心仪的套餐。比如在餐厅看到别人桌上的菜，拍下来就能识别出是什么菜，并推荐对应的套餐。传统搜索需要用户输入文字，只能通过contains+like,大概模糊搜索，“鱼”，只能检索名称带鱼的菜品，存在诸多局限。
 
 **痛点**：
-- 传统搜索需要用户输入文字，体验不够直观
+
 - 用户不知道菜名时无法搜索
 - 图片识别后需要与数据库菜品信息关联匹配
 
@@ -774,8 +760,8 @@ response.setHeader("Content-Disposition", "attachment;filename=" +
 Q：为什么用 Spring AI + 图工作流（Graph）来处理？
 > A：整个流程可以拆解为"视觉识别 → 工具查询"两个独立步骤。使用 Alibaba Cloud AI Graph 的状态图引擎，可以清晰编排每个节点，State 在节点间自动传递，方便扩展（比如未来加入推荐排序节点）。Spring AI 提供了统一的 ChatClient 抽象，对接 OpenAI 兼容 API 只需配置 base-url 和 api-key。
 
-Q：为什么 ai-hotline 是独立服务而不是集成到主应用中？
-> A：ai-hotline 依赖 Spring AI 和 Spring Boot 3.5.x 的较新版本，与主应用的 3.3.8 版本有冲突。独立部署还能让 AI 服务的扩缩容独立于业务服务，避免偶发的高延迟影响核心下单流程。
+Q：为什么 ai-see 是独立服务而不是集成到主应用中？
+> A：主业务订单和支付专注于“连接与事务”，让 ai-see 专注于“智能与计算”，独立部署能让 AI 服务的扩缩容独立于业务服务，避免偶发的高延迟影响核心下单流程。
 
 **工作流程**：
 ```
@@ -971,10 +957,6 @@ if (!key.isEmpty()) {
 }
 ```
 
-**问题**：ai-hotline 与主应用 Spring Boot 版本不兼容（3.5.x vs 3.3.8）
-
-**修复方案**：ai-hotline 作为独立 Maven 模块运行，不加入父工程的 module 列表，使用独立的 Spring Boot parent 版本
-
 ---
 
 # 核心组件设计
@@ -1092,7 +1074,7 @@ public class ServiceInterceptAspect {
 | 依赖 | 版本 | 功能支撑 |
 | :--- | :--- | :--- |
 | MyBatis Plus | 3.5.9 | DishMapper/DishFlavorMapper实现菜品和口味数据CRUD |
-| Spring Boot Starter Data Redis | 3.3.8 | **缓存策略**：AdminDishController使用RedisTemplate手动缓存菜品数据（50分钟过期），更新/删除后主动删除缓存 |
+| Spring Boot Starter Data Redis | 3.3.8 | **缓存策略**：AdminDishController使用RedisTemplate手动缓存菜品数据（30分钟过期），更新/删除后主动删除缓存 |
 | Spring Boot Starter Validation | 3.3.8 | 参数校验支持 |
 | Aliyun SDK OSS | 3.17.4 | 菜品图片上传到阿里云OSS |
 | Hutool All | 5.8.26 | BeanUtil进行对象属性拷贝 |
@@ -1130,12 +1112,12 @@ public class ServiceInterceptAspect {
 | :--- | :--- | :--- |
 | Aliyun SDK OSS | 3.17.4 | OSSFileController实现图片上传到阿里云OSS，返回CDN访问URL |
 | Spring Boot Starter Web | 3.3.8 | LocalFileController实现本地文件上传/下载 |
-| com.alibaba.easyexcel | -- | 实现excel，员工信息，菜品信息，套餐信息的读写 |
+| com.alibaba.easyexcel |  | 实现excel，员工信息，菜品信息，套餐信息的读写 |
 
 ### AI 热线功能依赖（独立服务 ai-hotline）
 | 依赖 | 版本 | 功能支撑 |
 | :--- | :--- | :--- |
-| Spring Boot | 3.5.15 | 应用框架（独立版本，与主应用3.3.8解耦） |
+| Spring Boot | 3.5.15 | 应用框架（独立版本）单独监控识别耗时、识别成功率、错误率，独立告警，不和业务接口指标混淆，问题定位清晰 |
 | Spring AI BOM | 1.1.0 | 统一管理 Spring AI 各组件版本 |
 | spring-ai-starter-model-openai | 1.1.0 | **AI 模型接入**：对接 SiliconFlow（OpenAI 兼容 API），使用 Qwen3.5-397B-A17B 多模态大模型 |
 | spring-ai-alibaba-graph-core | 1.1.0.0 | **图工作流引擎**：Alibaba Cloud AI Graph，编排 VisualFunction → ToolFunction 两节点 StateGraph |
@@ -1214,13 +1196,14 @@ public Result deleteSetmeal(List<Long> ids) {
 ## 管理端界面
 
 | 功能页面 | 截图 |
-| :--- | :--- |
-| 登录页面 | ![管理端登录](说明/原型功能/admin服务端1.png) |
-| 工作台首页 | ![工作台首页](说明/原型功能/admin服务端2.png) |
-| 菜品管理 | ![菜品管理](说明/原型功能/admin服务端3.png) |
-| 套餐管理 | ![套餐管理](说明/原型功能/admin服务端4.png) |
-| 订单管理 | ![订单管理](说明/原型功能/admin服务端5.png) |
-| 分类管理 | ![分类管理](说明/原型功能/admin服务端6.png) |
-| 员工管理 | ![员工管理](说明/原型功能/admin服务端7.png) |
+| :--: | :--: |
+| 登录页面 | <img src="说明/原型功能/admin服务端1.png" alt="管理端登录" style="zoom: 25%;" /> |
+| 菜谱分类 | <img src="说明/原型功能/admin服务端2.png" alt="首页" style="zoom: 25%;" /> |
+| 员工管理 | <img src="说明/原型功能/admin服务端3.png" alt="首页" style="zoom: 25%;" /> |
+| 工作台 | <img src="说明/原型功能/admin服务端4.png" alt="套餐管理" style="zoom:25%;" /> |
+| 菜品管理 | <img src="说明/原型功能/admin服务端5.png" alt="首页" style="zoom:25%;" /> |
+| 套餐管理 | <img src="说明/原型功能/admin服务端6.png" alt="首页" style="zoom:25%;" /> |
+| 订单作台 | <img src="说明/原型功能/admin服务端7.png" alt="首页" style="zoom:25%;" /> |
+| 店铺管理 | <img src="说明/原型功能/admin服务端8.png" alt="首页" style="zoom:25%;" /> |
 
 ---

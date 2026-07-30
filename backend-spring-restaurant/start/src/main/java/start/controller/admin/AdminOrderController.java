@@ -33,22 +33,64 @@ public class AdminOrderController {
                 .orderByDesc(Orders::getOrderTime)
                 .last("limit 20")));
     }
+    /**
+     * 获取订单详情（包含订单明细）
+     * @param id 订单ID
+     * @return 订单详情数据
+     */
     @GetMapping("get/{id}")
     public Result getOrder(@PathVariable Long id) {
-        return Result.success(orderService.getById(id));
+        return Result.success(orderService.getOrderWithDetails(id));
     }
+    /**
+     * 获取订单统计信息
+     * 返回所有订单状态的统计数量
+     * @return 订单统计数据
+     */
     @GetMapping("/statistics")
     public Result statistics() {
         OrderStatisticsDTO orderStatisticsDTO = new OrderStatisticsDTO();
-        LambdaQueryWrapper<Orders> ordersLambdaQueryWrapper1 = new LambdaQueryWrapper<>();
-        ordersLambdaQueryWrapper1.eq(Orders::getStatus , OrderStatusEnum.PENDING_MERCHANT_ACCEPT);
-        orderStatisticsDTO.setToBeConfirmed(orderService.count(ordersLambdaQueryWrapper1));
-        LambdaQueryWrapper<Orders> ordersLambdaQueryWrapper2 = new LambdaQueryWrapper<>();
-        ordersLambdaQueryWrapper2.eq(Orders::getStatus , OrderStatusEnum.PENDING_RIDER_PICK);
-        orderStatisticsDTO.setDeliveryInProgress(orderService.count(ordersLambdaQueryWrapper2));
-        LambdaQueryWrapper<Orders> ordersLambdaQueryWrapper3 = new LambdaQueryWrapper<>();
-        ordersLambdaQueryWrapper3.eq(Orders::getStatus , OrderStatusEnum.RIDER_DELIVERING);
-        orderStatisticsDTO.setDeliveryInProgress(orderService.count(ordersLambdaQueryWrapper3));
+        
+        // 待支付数量
+        LambdaQueryWrapper<Orders> qw1 = new LambdaQueryWrapper<>();
+        qw1.eq(Orders::getStatus, OrderStatusEnum.PENDING_PAYMENT);
+        orderStatisticsDTO.setPendingPayment(orderService.count(qw1));
+        
+        // 待商家接单数量
+        LambdaQueryWrapper<Orders> qw2 = new LambdaQueryWrapper<>();
+        qw2.eq(Orders::getStatus, OrderStatusEnum.PENDING_MERCHANT_ACCEPT);
+        orderStatisticsDTO.setToBeConfirmed(orderService.count(qw2));
+        
+        // 商家制作中数量
+        LambdaQueryWrapper<Orders> qw3 = new LambdaQueryWrapper<>();
+        qw3.eq(Orders::getStatus, OrderStatusEnum.MERCHANT_COOKING);
+        orderStatisticsDTO.setMerchantCooking(orderService.count(qw3));
+        
+        // 待骑手取餐数量
+        LambdaQueryWrapper<Orders> qw4 = new LambdaQueryWrapper<>();
+        qw4.eq(Orders::getStatus, OrderStatusEnum.PENDING_RIDER_PICK);
+        orderStatisticsDTO.setPendingRiderPick(orderService.count(qw4));
+        
+        // 骑手配送中数量
+        LambdaQueryWrapper<Orders> qw5 = new LambdaQueryWrapper<>();
+        qw5.eq(Orders::getStatus, OrderStatusEnum.RIDER_DELIVERING);
+        orderStatisticsDTO.setRiderDelivering(orderService.count(qw5));
+        
+        // 骑手已送达数量
+        LambdaQueryWrapper<Orders> qw6 = new LambdaQueryWrapper<>();
+        qw6.eq(Orders::getStatus, OrderStatusEnum.RIDER_ARRIVED);
+        orderStatisticsDTO.setRiderArrived(orderService.count(qw6));
+        
+        // 订单已完成数量
+        LambdaQueryWrapper<Orders> qw7 = new LambdaQueryWrapper<>();
+        qw7.eq(Orders::getStatus, OrderStatusEnum.COMPLETED);
+        orderStatisticsDTO.setCompleted(orderService.count(qw7));
+        
+        // 订单已取消数量
+        LambdaQueryWrapper<Orders> qw8 = new LambdaQueryWrapper<>();
+        qw8.eq(Orders::getStatus, OrderStatusEnum.CANCELLED);
+        orderStatisticsDTO.setCancelled(orderService.count(qw8));
+        
         return Result.success(orderStatisticsDTO);
     }
     @GetMapping("/conditionSearch")

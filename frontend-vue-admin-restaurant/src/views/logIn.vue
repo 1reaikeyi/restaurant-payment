@@ -1,13 +1,13 @@
 <template>
   <div class="login">
     <div class="login-box">
-      <img src="../assets/login/login-l.png" alt="" />
+      <img src="../assets/login/login.png" alt="" />
       <div class="login-form">
         <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules">
           <div class="login-form-title">
             <img
-                src="../assets/login/icon_logo.png"
-                style="width: 149px; height: 38px"
+                src="../assets/login/a.png"
+                style="width: 100px; height: 60px"
                 alt=""
             />
           </div>

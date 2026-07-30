@@ -35,7 +35,6 @@ public class RedisConfiguration {
                 .build();
         // 3. 存入 @class
         redisMapper.activateDefaultTyping(typeValidator, ObjectMapper.DefaultTyping.NON_FINAL, JsonTypeInfo.As.PROPERTY);
-
         return redisMapper;
     }
 
@@ -58,7 +57,7 @@ public class RedisConfiguration {
         RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer(redisMapper)))
-                .entryTtl(Duration.ofHours(1))
+                .entryTtl(Duration.ofMinutes(30))
                 .computePrefixWith(cacheName -> cacheName + ":");
 
         return RedisCacheManager.builder(connectionFactory)
