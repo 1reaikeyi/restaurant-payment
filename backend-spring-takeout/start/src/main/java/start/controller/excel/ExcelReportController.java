@@ -7,8 +7,11 @@ import com.alibaba.excel.event.AnalysisEventListener;
 import com.alibaba.excel.write.metadata.WriteSheet;
 import common.excel.UserStatistics;
 import common.result.Result;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import org.springframework.util.StreamUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,14 +21,21 @@ import service.ISevcive.UserService;
 
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
 @RestController
 @RequestMapping("report")
+@Slf4j
 public class ExcelReportController {
     @Autowired
     private UserService userService;
+    private static final String PATH = "start/excel/report.xlsx";
 
     /**
      * write
@@ -33,7 +43,7 @@ public class ExcelReportController {
      */
     @GetMapping("/excel/export")
     public Result dowrite() {
-        File file = new File("云/excel/report.xlsx");
+        File file = new File(PATH);
         String filePath = file.getAbsolutePath();
         File checkFile = new File(filePath);
         if (!checkFile.exists()) {
@@ -59,7 +69,7 @@ public class ExcelReportController {
      */
     @PostMapping("/excel/read")
     public Result doread() {
-        File file = new File("云/excel/report.xlsx");
+        File file = new File(PATH);
         String filePath = file.getAbsolutePath();
 
         List<UserStatistics> dataList = new ArrayList<>();
@@ -81,5 +91,27 @@ public class ExcelReportController {
             }
         }).sheet().doRead();
        return Result.success(dataList);
+    }
+    @GetMapping
+    public void download(HttpServletResponse response) {
+        String fileName = "导出用户数据.xlsx";
+        File local = new File(PATH);
+        File path = new File(local.getAbsolutePath());
+        try {
+            if (!path.exists()) {
+                throw new IllegalArgumentException(path + "文件不存在");
+            }
+            response.setContentType("application/octet-stream");
+            String encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8);
+            response.setHeader("Content-Disposition", "attachment;filename=" + encodedFileName);
+            try (InputStream fileInputStream = new FileInputStream(path)) {
+                StreamUtils.copy(fileInputStream, response.getOutputStream());
+                response.flushBuffer();
+                log.info("文件下载成功: {}", path);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
     }
 }
