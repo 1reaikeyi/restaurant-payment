@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>苍穹外卖-管理端接口</title>
+<meta charset="utf-8" />
+<style>
+html,body,h1,h2,h3,h4,h5,h6,p,blockquote{margin:0;padding:0;font-weight:normal;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{-webkit-box-shadow:inset 0 0 6px rgba(255,0,0,0.3);background:rgba(0,0,0,0.1)}
+::-webkit-scrollbar-thumb{border-radius:4px;background:rgba(0,0,0,0.2);-webkit-box-shadow:inset 0 0 6px rgba(0,0,0,0.5)}
+::-webkit-scrollbar-thumb:window-inactive{background:rgba(0,0,0,0.2)}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Helvetica,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",SimSun,sans-serif;font-size:13px;line-height:25px;color:#393838;position:relative}
+table{margin:10px 0 15px 0;border-collapse:collapse}
+td,th{border:1px solid #ddd;padding:3px 10px}
+th{padding:5px 10px}
+a,a:link,a:visited{color:#34495e;text-decoration:none}
+a:hover,a:focus{color:#59d69d;text-decoration:none}
+a img{border:none}
+p{padding-left:10px;margin-bottom:9px}
+h1,h2,h3,h4,h5,h6{color:#404040;line-height:36px}
+h1{color:#2c3e50;font-weight:600;margin-bottom:16px;font-size:32px;padding-bottom:16px;border-bottom:1px solid #ddd;line-height:50px}
+h2{font-size:28px;padding-top:10px;padding-bottom:10px}
+h3{clear:both;font-weight:400;margin-top:20px;margin-bottom:20px;border-left:3px solid #59d69d;padding-left:8px;font-size:18px}
+h4{font-size:16px}
+h5{font-size:14px}
+h6{font-size:13px}
+hr{margin:0 0 19px;border:0;border-bottom:1px solid #ccc}
+blockquote{padding:13px 13px 21px 15px;margin-bottom:18px;font-family:georgia,serif;font-style:italic}
+blockquote:before{font-size:40px;margin-left:-10px;font-family:georgia,serif;color:#eee}
+blockquote p{font-size:14px;font-weight:300;line-height:18px;margin-bottom:0;font-style:italic}
+code,pre{font-family:Monaco,Andale Mono,Courier New,monospace}
+code{background-color:#fee9cc;color:rgba(0,0,0,0.75);padding:1px 3px;font-size:12px;-webkit-border-radius:3px;-moz-border-radius:3px;border-radius:3px}
+pre{display:block;padding:14px;margin:0 0 18px;line-height:16px;font-size:11px;border:1px solid #d9d9d9;white-space:pre-wrap;word-wrap:break-word;background:#f6f6f6}
+pre code{background-color:#f6f6f6;color:#737373;font-size:11px;padding:0}
+sup{font-size:0.83em;vertical-align:super;line-height:0}
+.method{color:#59d69d;font-weight:bold}
+.url{color:#e8a05a;font-weight:bold}
+.param{color:#e8a05a;font-weight:bold}
+.param{color:#e8a05a;font-weight:bold}
+.type{color:#998e8e;font-weight:bold}
+.status{color:#59d69d}
+.note{color:#737373;font-size:12px}
+table{width:100%;max-width:100%;margin-bottom:20px;border-collapse:collapse}
+.table-bordered{border:1px solid #ddd}
+.table-bordered td,.table-bordered th{border:1px solid #ddd}
+.table-striped tr:nth-child(even){background-color:#f9f9f9}
+.api-item{margin-bottom:30px;padding:15px;border:1px solid #ddd;border-radius:4px;background:#fff}
+.api-item:hover{border-color:#59d69d}
+.api-item h4{margin-top:0;color:#2c3e50}
+.request-box,.response-box{margin:10px 0;padding:10px;background:#f6f6f6;border-radius:4px}
+.request-box h5,.response-box h5{margin:5px 0;color:#2c3e50}
+.json-placeholder{color:#737373;font-style:italic}
+</style>
+</head>
+<body>
+
+<h1>苍穹外卖-管理端接口文档</h1>
+
+<h3>一、员工管理接口</h3>
+
+<div class="api-item">
+<h4>1.1 员工登录</h4>
+<p><span class="method">POST</span> <span class="url">/admin/employees/login</span></p>
+<h5>请求参数 (JSON)</h5>
+<div class="request-box">
+<pre>{
+  "userName": "String",    // 用户名 (必填)
+  "password": "String"     // 密码 (必填)
+}</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "员工ID::jwt_token字符串"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>1.2 员工注册</h4>
+<p><span class="method">POST</span> <span class="url">/admin/employees/register</span></p>
+<h5>请求参数 (JSON)</h5>
+<div class="request-box">
+<pre>{
+  "userName": "String",    // 用户名 (必填)
+  "name": "String",        // 姓名 (必填)
+  "phone": "String",       // 手机号 (必填)
+  "sex": "String",         // 性别 (必填)
+  "idNumber": "String",    // 身份证号 (必填)
+  "password": "String"     // 密码 (必填)
+}</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "register::员工ID"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>1.3 员工登出</h4>
+<p><span class="method">POST</span> <span class="url">/admin/employees/logout</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "logout::员工ID"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>1.4 添加员工</h4>
+<p><span class="method">POST</span> <span class="url">/admin/employees</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>请求参数 (JSON)</h5>
+<div class="request-box">
+<pre>{
+  "userName": "String",    // 用户名 (必填,唯一)
+  "name": "String",        // 姓名 (必填)
+  "phone": "String",       // 手机号 (必填)
+  "sex": "String",         // 性别 (必填)
+  "idNumber": "String",    // 身份证号 (必填)
+  "password": "String"     // 密码 (可选,默认123456)
+}</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "createEmployee::员工ID"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>1.5 根据ID查询员工</h4>
+<p><span class="method">GET</span> <span class="url">/admin/employees/{id}</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>路径参数</h5>
+<div class="request-box">
+<pre>id: Long    // 员工ID</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": {
+    "id": "Long",
+    "userName": "String",
+    "name": "String",
+    "phone": "String",
+    "sex": "String",
+    "idNumber": "String",
+    "status": "Long",
+    "createTime": "LocalDateTime",
+    "updateTime": "LocalDateTime"
+  }
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>1.6 员工分页查询</h4>
+<p><span class="method">GET</span> <span class="url">/admin/employees</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>请求参数 (Query)</h5>
+<div class="request-box">
+<pre>name: String      // 员工姓名 (可选)
+page: Long        // 页码 (必填,默认1)
+pageSize: Long    // 每页条数 (必填,默认10)</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": {
+    "records": [{
+      "id": "Long",
+      "userName": "String",
+      "name": "String",
+      "phone": "String",
+      "sex": "String",
+      "idNumber": "String",
+      "status": "Long",
+      "createTime": "LocalDateTime"
+    }],
+    "total": "Long",
+    "size": "Long",
+    "current": "Long"
+  }
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>1.7 更新员工状态</h4>
+<p><span class="method">PUT</span> <span class="url">/admin/employees/{id}/status/{status}</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>路径参数</h5>
+<div class="request-box">
+<pre>id: Long      // 员工ID
+status: Long   // 状态: 1启用 0禁用</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "id::启用/禁用"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>1.8 更新员工信息</h4>
+<p><span class="method">PUT</span> <span class="url">/admin/employees</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>请求参数 (JSON)</h5>
+<div class="request-box">
+<pre>{
+  "id": "Long",            // 员工ID (必填)
+  "userName": "String",    // 用户名 (必填,唯一)
+  "name": "String",        // 姓名 (必填)
+  "phone": "String",       // 手机号 (必填)
+  "sex": "String",         // 性别 (必填)
+  "idNumber": "String",    // 身份证号 (必填)
+  "status": "Long"         // 状态 (可选)
+}</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "updateEmployee::员工ID"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>1.9 更新员工密码</h4>
+<p><span class="method">PUT</span> <span class="url">/admin/employees/password</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>请求参数 (JSON)</h5>
+<div class="request-box">
+<pre>{
+  "empId": "Long",              // 员工ID (必填)
+  "password": "String",        // 原密码 (必填)
+  "confirmPassword": "String"  // 新密码 (必填)
+}</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "updateStatus::员工ID"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>1.10 删除员工</h4>
+<p><span class="method">DELETE</span> <span class="url">/admin/employees/{id}</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>路径参数</h5>
+<div class="request-box">
+<pre>id: Long    // 员工ID</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "deleteEmployee::员工ID"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>1.11 批量删除员工</h4>
+<p><span class="method">DELETE</span> <span class="url">/admin/employees</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>请求参数 (Query)</h5>
+<div class="request-box">
+<pre>ids: List<Long>    // 员工ID列表 (必填)</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "deleteAll::[员工ID列表]"
+}</pre>
+</div>
+</div>
+
+<h3>二、分类管理接口</h3>
+
+<div class="api-item">
+<h4>2.1 添加分类</h4>
+<p><span class="method">POST</span> <span class="url">/admin/categories</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>请求参数 (JSON)</h5>
+<div class="request-box">
+<pre>{
+  "name": "String",        // 分类名称 (必填,唯一)
+  "type": "Long",          // 类型: 1菜品分类 2套餐分类 (必填)
+  "sort": "Long",          // 排序 (必填)
+  "status": "Long"         // 状态: 1正常 (必填)
+}</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "createCategory::分类ID"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>2.2 分类分页查询</h4>
+<p><span class="method">GET</span> <span class="url">/admin/categories</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>请求参数 (Query)</h5>
+<div class="request-box">
+<pre>name: String      // 分类名称 (可选)
+type: Long        // 类型: 1菜品分类 2套餐分类 (可选)
+page: Long        // 页码 (必填,默认1)
+pageSize: Long    // 每页条数 (必填,默认10)</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": {
+    "records": [{
+      "id": "Long",
+      "type": "Long",
+      "name": "String",
+      "sort": "Long",
+      "status": "Long",
+      "createTime": "LocalDateTime",
+      "updateTime": "LocalDateTime"
+    }],
+    "total": "Long",
+    "size": "Long",
+    "current": "Long"
+  }
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>2.3 根据类型查询分类</h4>
+<p><span class="method">GET</span> <span class="url">/admin/categories/{type}</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>路径参数</h5>
+<div class="request-box">
+<pre>type: Long    // 类型: 1菜品分类 2套餐分类</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": [{
+    "id": "Long",
+    "type": "Long",
+    "name": "String",
+    "sort": "Long",
+    "status": "Long"
+  }]
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>2.4 更新分类状态</h4>
+<p><span class="method">PUT</span> <span class="url">/admin/categories/{id}/status/{status}</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>路径参数</h5>
+<div class="request-box">
+<pre>id: Long      // 分类ID
+status: Long  // 状态: 1启用 0禁用</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "分类ID::启用成功/禁用成功"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>2.5 更新分类信息</h4>
+<p><span class="method">PUT</span> <span class="url">/admin/categories</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>请求参数 (JSON)</h5>
+<div class="request-box">
+<pre>{
+  "id": "Long",
+  "name": "String",        // 分类名称 (必填,唯一)
+  "sort": "Long",
+  "type": "Long",
+  "status": "Long"
+}</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "updateCategory::分类ID"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>2.6 删除分类</h4>
+<p><span class="method">DELETE</span> <span class="url">/admin/categories/{id}</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>路径参数</h5>
+<div class="request-box">
+<pre>id: Long    // 分类ID</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "deleteCategory::分类ID"
+}</pre>
+</div>
+</div>
+
+<h3>三、菜品管理接口</h3>
+
+<div class="api-item">
+<h4>3.1 添加菜品</h4>
+<p><span class="method">POST</span> <span class="url">/admin/dishes</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>请求参数 (JSON)</h5>
+<div class="request-box">
+<pre>{
+  "name": "String",              // 菜品名称 (必填,唯一)
+  "categoryId": "Long",          // 菜品分类ID (必填)
+  "price": "BigDecimal",         // 菜品价格 (必填)
+  "image": "String",             // 图片地址 (必填)
+  "description": "String",       // 描述信息 (可选)
+  "status": "Long",              // 状态: 0停售 1起售 (必填)
+  "flavors": [{                  // 口味列表 (必填,不能为空)
+    "name": "String",            // 口味名称
+    "value": "String"           // 口味值
+  }]
+}</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "createDish::菜品ID"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>3.2 菜品分页查询</h4>
+<p><span class="method">GET</span> <span class="url">/admin/dishes</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>请求参数 (Query)</h5>
+<div class="request-box">
+<pre>name: String      // 菜品名称 (可选)
+page: Long        // 页码 (必填)
+pageSize: Long    // 每页条数 (必填)</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": {
+    "records": [{
+      "id": "Long",
+      "name": "String",
+      "categoryId": "Long",
+      "price": "BigDecimal",
+      "image": "String",
+      "description": "String",
+      "status": "Long",
+      "createTime": "LocalDateTime"
+    }],
+    "total": "Long",
+    "size": "Long",
+    "current": "Long"
+  }
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>3.3 根据ID查询菜品</h4>
+<p><span class="method">GET</span> <span class="url">/admin/dishes/{id}</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>路径参数</h5>
+<div class="request-box">
+<pre>id: Long    // 菜品ID</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": {
+    "id": "Long",
+    "name": "String",
+    "categoryId": "Long",
+    "price": "BigDecimal",
+    "image": "String",
+    "description": "String",
+    "status": "Long",
+    "flavors": [{
+      "name": "String",
+      "value": "String"
+    }]
+  }
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>3.4 根据分类ID查询菜品</h4>
+<p><span class="method">GET</span> <span class="url">/admin/dishes/category/{categoryId}</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>路径参数</h5>
+<div class="request-box">
+<pre>categoryId: Long    // 分类ID</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": [{
+    "id": "Long",
+    "name": "String"
+  }]
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>3.5 更新菜品</h4>
+<p><span class="method">PUT</span> <span class="url">/admin/dishes</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>请求参数 (JSON)</h5>
+<div class="request-box">
+<pre>{
+  "id": "Long",
+  "name": "String",              // 菜品名称 (必填)
+  "categoryId": "Long",          // 菜品分类ID (必填)
+  "price": "BigDecimal",         // 菜品价格 (必填)
+  "image": "String",             // 图片地址 (必填)
+  "description": "String",       // 描述信息 (可选)
+  "status": "Long",              // 状态: 0停售 1起售 (必填)
+  "flavors": [{                  // 口味列表 (必填,不能为空)
+    "name": "String",            // 口味名称
+    "value": "String"           // 口味值
+  }]
+}</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "updateDish::菜品ID"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>3.6 更新菜品状态</h4>
+<p><span class="method">PUT</span> <span class="url">/admin/dishes/{id}/status/{status}</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>路径参数</h5>
+<div class="request-box">
+<pre>id: Long      // 菜品ID
+status: Long  // 状态: 0停售 1起售</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "菜品ID::起售成功/停售成功"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>3.7 删除菜品</h4>
+<p><span class="method">DELETE</span> <span class="url">/admin/dishes</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>请求参数 (Query)</h5>
+<div class="request-box">
+<pre>ids: List<Long>    // 菜品ID列表 (必填)</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "deleteDish::[菜品ID列表]"
+}</pre>
+</div>
+</div>
+
+<h3>四、套餐管理接口</h3>
+
+<div class="api-item">
+<h4>4.1 添加套餐</h4>
+<p><span class="method">POST</span> <span class="url">/admin/setmeals</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>请求参数 (JSON)</h5>
+<div class="request-box">
+<pre>{
+  "name": "String",              // 套餐名称 (必填,唯一)
+  "categoryId": "Long",          // 分类ID (必填)
+  "price": "BigDecimal",         // 套餐价格 (必填)
+  "description": "String",       // 描述信息 (可选)
+  "image": "String",             // 图片地址 (必填)
+  "status": "Long",              // 状态: 0停用 1启用 (必填)
+  "setmealDishes": [{            // 套餐菜品列表 (必填,不能为空)
+    "dishId": "Long",
+    "name": "String",
+    "price": "BigDecimal",
+    "copies": "Long"
+  }]
+}</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "addSetmeal::套餐ID"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>4.2 套餐分页查询</h4>
+<p><span class="method">GET</span> <span class="url">/admin/setmeals</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>请求参数 (Query)</h5>
+<div class="request-box">
+<pre>name: String       // 套餐名称 (可选)
+categoryId: Long   // 分类ID (可选)
+status: Long       // 状态 (可选)
+page: Long         // 页码 (必填)
+pageSize: Long     // 每页条数 (必填)</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": {
+    "records": [{
+      "id": "Long",
+      "categoryId": "Long",
+      "name": "String",
+      "price": "BigDecimal",
+      "status": "Long",
+      "description": "String",
+      "image": "String"
+    }],
+    "total": "Long",
+    "size": "Long",
+    "current": "Long"
+  }
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>4.3 根据ID查询套餐</h4>
+<p><span class="method">GET</span> <span class="url">/admin/setmeals/{id}</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>路径参数</h5>
+<div class="request-box">
+<pre>id: Long    // 套餐ID</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "Setmeal对象::SetmealDish列表"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>4.4 更新套餐</h4>
+<p><span class="method">PUT</span> <span class="url">/admin/setmeals</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>请求参数 (JSON)</h5>
+<div class="request-box">
+<pre>{
+  "id": "Long",
+  "name": "String",
+  "categoryId": "Long",
+  "price": "BigDecimal",
+  "description": "String",
+  "image": "String",
+  "status": "Long",
+  "setmealDishes": [{
+    "dishId": "Long",
+    "name": "String",
+    "price": "BigDecimal",
+    "copies": "Long"
+  }]
+}</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "updateSetmeal::套餐ID"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>4.5 更新套餐状态</h4>
+<p><span class="method">PUT</span> <span class="url">/admin/setmeals/{id}/status/{status}</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>路径参数</h5>
+<div class="request-box">
+<pre>id: Long      // 套餐ID
+status: Long  // 状态: 0停用 1启用</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "套餐ID::启用成功/停用成功"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>4.6 删除套餐</h4>
+<p><span class="method">DELETE</span> <span class="url">/admin/setmeals</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>请求参数 (Query)</h5>
+<div class="request-box">
+<pre>ids: List<Long>    // 套餐ID列表 (必填)</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "deleteSetmealAll::[套餐ID列表]"
+}</pre>
+</div>
+</div>
+
+<h3>五、订单管理接口</h3>
+
+<div class="api-item">
+<h4>5.1 查询订单详情</h4>
+<p><span class="method">GET</span> <span class="url">/admin/orders/get/{id}</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>路径参数</h5>
+<div class="request-box">
+<pre>id: Long    // 订单ID</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": {
+    // Orders实体对象
+  }
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>5.2 订单统计</h4>
+<p><span class="method">GET</span> <span class="url">/admin/orders/statistics</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": {
+    "toBeConfirmed": "Long",         // 待接单数量
+    "deliveryInProgress": "Long"     // 派送中数量
+  }
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>5.3 条件搜索订单</h4>
+<p><span class="method">GET</span> <span class="url">/admin/orders/conditionSearch</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>请求参数 (Query)</h5>
+<div class="request-box">
+<pre>phone: String       // 手机号 (可选)
+id: Long            // 用户ID (可选)
+page: Long          // 页码 (必填)
+pageSize: Long      // 每页条数 (必填)</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": {
+    "records": [],
+    "total": "Long",
+    "size": "Long",
+    "current": "Long"
+  }
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>5.4 确认订单</h4>
+<p><span class="method">PUT</span> <span class="url">/admin/orders/confirm/{orderId}</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>路径参数</h5>
+<div class="request-box">
+<pre>orderId: Long    // 订单ID</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "订单ID::COMFIRM"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>5.5 取消订单</h4>
+<p><span class="method">PUT</span> <span class="url">/admin/orders/cancel/{id}</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>路径参数</h5>
+<div class="request-box">
+<pre>id: Long    // 订单ID</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "cancelOrder订单ID"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>5.6 派送订单</h4>
+<p><span class="method">PUT</span> <span class="url">/admin/orders/delivery/{id}</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>路径参数</h5>
+<div class="request-box">
+<pre>id: Long    // 订单ID</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "订单ID::DELIVERING"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>5.7 完成订单</h4>
+<p><span class="method">PUT</span> <span class="url">/admin/orders/complete/{id}</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>路径参数</h5>
+<div class="request-box">
+<pre>id: Long    // 订单ID</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "订单ID::COMPLETED"
+}</pre>
+</div>
+</div>
+
+<h3>六、工作台接口</h3>
+
+<div class="api-item">
+<h4>6.1 菜品概览</h4>
+<p><span class="method">GET</span> <span class="url">/admin/workspace/overview/dish</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": {
+    "sold": "Long",           // 在售菜品数量
+    "discontinued": "Long"    // 停售菜品数量
+  }
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>6.2 套餐概览</h4>
+<p><span class="method">GET</span> <span class="url">/admin/workspace/overview/setmeal</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": {
+    "sold": "Long",           // 在售套餐数量
+    "discontinued": "Long"    // 停售套餐数量
+  }
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>6.3 订单概览</h4>
+<p><span class="method">GET</span> <span class="url">/admin/workspace/overview/order</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": {
+    "allOrders": "Long",         // 总订单数
+    "completedOrders": "Long",   // 已完成订单数
+    "refundOrders": "Long",      // 退款订单数
+    "cancelledOrders": "Long"    // 已取消订单数
+  }
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>6.4 今日订单统计</h4>
+<p><span class="method">GET</span> <span class="url">/admin/workspace/orderDay</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": {
+    "orderCountList": "String",      // 今日总订单数
+    "validOrderCountList": "String", // 今日有效订单数
+    "validRate": "Double"            // 有效率
+  }
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>6.5 菜品销量排行</h4>
+<p><span class="method">GET</span> <span class="url">/admin/workspace/dishScole</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": [{
+    "name": "String",     // 菜品名称
+    "number": "Long"      // 销量
+  }]
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>6.6 套餐销量排行</h4>
+<p><span class="method">GET</span> <span class="url">/admin/workspace/setmealScole</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": [{
+    "name": "String",     // 套餐名称
+    "number": "Long"      // 销量
+  }]
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>6.7 时间范围订单统计</h4>
+<p><span class="method">GET</span> <span class="url">/admin/workspace/statisticsOrder</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>请求参数 (Query)</h5>
+<div class="request-box">
+<pre>startTime: String   // 开始时间 (格式: yyyy-MM-dd)
+endTime: String     // 结束时间 (格式: yyyy-MM-dd)</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": {
+    "allOrders": "Long",         // 总订单数
+    "completedOrders": "Long",   // 已完成订单数
+    "refundOrders": "Long"       // 退款订单数
+  }
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>6.8 菜品销量TOP5</h4>
+<p><span class="method">GET</span> <span class="url">/admin/workspace/statisticsTopDish</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": [{
+    "name": "String",     // 菜品名称
+    "number": "Long"      // 销量
+  }]
+}</pre>
+</div>
+<p><strong>说明</strong>: 返回销量最高的前5个菜品</p>
+</div>
+
+<div class="api-item">
+<h4>6.9 套餐销量TOP5</h4>
+<p><span class="method">GET</span> <span class="url">/admin/workspace/statisticsTopSetmeal</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": [{
+    "name": "String",     // 套餐名称
+    "number": "Long"      // 销量
+  }]
+}</pre>
+</div>
+<p><strong>说明</strong>: 返回销量最高的前5个套餐</p>
+</div>
+
+<h3>七、店铺状态接口</h3>
+
+<div class="api-item">
+<h4>7.1 获取店铺状态</h4>
+<p><span class="method">GET</span> <span class="url">/admin/shop/status</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "营业中/已打烊"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>7.2 更新店铺状态</h4>
+<p><span class="method">PUT</span> <span class="url">/admin/shop/status/{status}</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>路径参数</h5>
+<div class="request-box">
+<pre>status: Long    // 状态: 1营业中 0已打烊</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "updateStatus::营业中/已打烊"
+}</pre>
+</div>
+</div>
+
+<h3>八、Excel报表接口</h3>
+
+<div class="api-item">
+<h4>8.1 导出Excel报表</h4>
+<p><span class="method">GET</span> <span class="url">/admin/report/excel/export</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": "文件路径"
+}</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>8.2 读取Excel报表</h4>
+<p><span class="method">POST</span> <span class="url">/admin/report/excel/read</span></p>
+<h5>请求头</h5>
+<p>需要携带JWT Token (AdminToken)</p>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>{
+  "code": 200,
+  "msg": "操作成功",
+  "data": [{
+    "id": "Long",
+    "name": "String"
+  }]
+}</pre>
+</div>
+</div>
+
+<h3>九、支付接口</h3>
+
+<div class="api-item">
+<h4>9.1 电脑网站支付</h4>
+<p><span class="method">GET</span> <span class="url">/pay/order</span></p>
+<h5>请求参数 (Query)</h5>
+<div class="request-box">
+<pre>outTradeNo: String      // 商户订单号
+subject: String         // 订单标题
+totalAmount: String      // 订单金额
+productCode: String      // 产品码</pre>
+</div>
+<h5>响应</h5>
+<p>跳转到支付宝沙箱收银台页面</p>
+</div>
+
+<div class="api-item">
+<h4>9.2 交易查询</h4>
+<p><span class="method">GET</span> <span class="url">/pay/order/query</span></p>
+<h5>请求参数</h5>
+<div class="request-box">
+<pre>outTradeNo: String    // 商户订单号</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>AlipayTradeQueryResponse对象</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>9.3 退款</h4>
+<p><span class="method">POST</span> <span class="url">/pay/refund</span></p>
+<h5>请求参数</h5>
+<div class="request-box">
+<pre>outTradeNo: String       // 商户订单号
+refundAmount: String      // 退款金额
+refundReason: String      // 退款原因</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>AlipayTradeRefundResponse对象</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>9.4 退款查询</h4>
+<p><span class="method">GET</span> <span class="url">/pay/refund/query</span></p>
+<h5>请求参数</h5>
+<div class="request-box">
+<pre>outTradeNo: String       // 商户订单号
+outRequestNo: String     // 商户退款单号</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>AlipayTradeFastpayRefundQueryResponse对象</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>9.5 关闭交易</h4>
+<p><span class="method">POST</span> <span class="url">/pay/order/close</span></p>
+<h5>请求参数</h5>
+<div class="request-box">
+<pre>outTradeNo: String    // 商户订单号</pre>
+</div>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>AlipayTradeCloseResponse对象</pre>
+</div>
+</div>
+
+<div class="api-item">
+<h4>9.6 同步跳转</h4>
+<p><span class="method">GET</span> <span class="url">/pay/return</span></p>
+<h5>响应示例</h5>
+<div class="response-box">
+<pre>已返回商户页面,同步返回。</pre>
+</div>
+</div>
+
+<h3>十、枚举说明</h3>
+
+<h4>订单状态 (OrderStatus)</h4>
+<table class="table-bordered">
+<tr><th>值</th><th>说明</th></tr>
+<tr><td>1</td><td>待付款</td></tr>
+<tr><td>2</td><td>待接单</td></tr>
+<tr><td>3</td><td>已接单</td></tr>
+<tr><td>4</td><td>派送中</td></tr>
+<tr><td>5</td><td>已完成</td></tr>
+<tr><td>6</td><td>已取消</td></tr>
+<tr><td>7</td><td>退款</td></tr>
+</table>
+
+<h4>支付状态 (PayStatusEnum)</h4>
+<table class="table-bordered">
+<tr><th>值</th><th>说明</th></tr>
+<tr><td>0</td><td>未支付</td></tr>
+<tr><td>1</td><td>已支付</td></tr>
+<tr><td>2</td><td>退款</td></tr>
+</table>
+
+<h4>支付方式 (payMethod)</h4>
+<table class="table-bordered">
+<tr><th>值</th><th>说明</th></tr>
+<tr><td>1</td><td>支付宝</td></tr>
+<tr><td>2</td><td>微信</td></tr>
+</table>
+
+<h4>通用状态</h4>
+<table class="table-bordered">
+<tr><th>值</th><th>说明</th></tr>
+<tr><td>0</td><td>禁用/停售/停用</td></tr>
+<tr><td>1</td><td>启用/正常/起售</td></tr>
+</table>
+
+<h3>十一、统一响应格式</h3>
+<pre>{
+  "code": 200,           // 200表示成功，其他表示失败
+  "msg": "操作成功",    // 提示信息
+  "data": {}           // 返回数据
+}</pre>
+
+</body>
+</html>

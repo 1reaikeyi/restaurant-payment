@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电脑网站支付</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; color: #1a1a1a; }
+        h1 { font-size: 20px; margin-bottom: 4px; }
+        .sub { font-size: 13px; color: #888; margin-bottom: 24px; }
+        .tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #e8f5e9; color: #2e7d32; margin-bottom: 16px; }
+        label { display: block; font-size: 13px; font-weight: 600; margin: 16px 0 4px; }
+        input { width: 100%; padding: 8px 10px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 14px; outline: none; box-sizing: border-box; }
+        input:focus { border-color: #1677ff; }
+        .hint { font-size: 11px; color: #aaa; margin-top: 2px; }
+        button { width: 100%; padding: 10px; margin-top: 20px; background: #1677ff; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; }
+        button:hover { background: #0958d9; }
+        button:disabled { background: #999; cursor: not-allowed; }
+        .result { margin-top: 16px; padding: 12px; background: #f6f6f6; border-radius: 6px; font-size: 12px; word-break: break-all; white-space: pre-wrap; display: none; font-family: monospace; }
+    </style>
+</head>
+<body>
+<h1>支付宝支付</h1>
+<label>JWT</label>
+<input type="text" id="jwt" placeholder="Bearer JWT">
+<div class="hint">Authorization: Bearer {jwt}</div>
+
+<label>outTradeNo</label>
+<input type="text" id="outTradeNo">
+
+<label>totalAmount</label>
+<input type="number" id="totalAmount" value="0.01" step="0.01" min="0.01">
+
+<label>subject</label>
+<input type="text" id="subject" value="支付宝支付">
+
+<button id="btn" onclick="pay()">发起支付</button>
+<div class="result" id="result"></div>
+
+<script>
+    // 自动生成订单号
+    document.getElementById('outTradeNo').value = Date.now();
+
+    async function pay() {
+        const jwt = document.getElementById('jwt').value.trim();
+        if (!jwt) return alert('请填写 JWT');
+        const outTradeNo = document.getElementById('outTradeNo').value.trim();
+        const totalAmount = document.getElementById('totalAmount').value;
+        const subject = document.getElementById('subject').value.trim();
+        if (!outTradeNo || !totalAmount || !subject) return alert('请填写完整参数');
+
+        const btn = document.getElementById('btn');
+        btn.disabled = true; btn.textContent = '请求中...';
+        try {
+            const url = `/pay/order?outTradeNo=${encodeURIComponent(outTradeNo)}&totalAmount=${encodeURIComponent(totalAmount)}&subject=${encodeURIComponent(subject)}`;
+            const res = await fetch(url, { headers: { 'Authorization': `Bearer ${jwt}` } });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const html = await res.text();
+
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('result').textContent = '已获取表单，即将跳转...';
+
+            // 后端返回的是支付宝自动提交表单的HTML，写入页面即可跳转
+            setTimeout(() => { document.open(); document.write(html); document.close(); }, 800);
+        } catch (e) {
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('result').textContent = e.message;
+        } finally {
+            btn.disabled = false; btn.textContent = '发起支付';
+        }
+    }
+</script>
+</body>
+</html>

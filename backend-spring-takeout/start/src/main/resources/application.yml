@@ -1,0 +1,64 @@
+spring:
+  profiles:
+    active: dev
+  datasource:
+    driver-class-name: ${take_out.datasource.driver-class-name}
+    url: jdbc:mysql://${take_out.datasource.host}:${take_out.datasource.port}/${take_out.datasource.database}
+    username: ${take_out.datasource.username}
+    password: ${take_out.datasource.password}
+  data:
+    redis:
+      host: ${take_out.redis.host}
+      port: ${take_out.redis.port}
+      password: ${take_out.redis.password}
+      database: ${take_out.redis.database}
+  cache:
+    type: redis
+
+  config:
+    import: classpath:mybatis-config.yml
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+logging:
+  level:
+    take_out:
+      web_controller: ${take_out.logging:info}
+jwt:
+  # 设置jwt签名加密时使用的秘钥
+  admin-secret-key: 小米xiaomi_secret_key_for_jwt_token_generation
+  # 设置jwt过期时间
+  admin-ttl: 864000000
+  # 设置前端传递过来的令牌名称
+  admin-token-name: token
+  # 设置jwt签名加密时使用的秘钥
+  user-secret-key: 小米xiaomi_secret_key_for_jwt_token_generation
+  # 设置jwt过期时间
+  user-ttl: 864000000
+  # 设置前端传递过来的令牌名称
+  user-token-name: token
+
+alioss:
+  endpoint: ${take_out.endpoint}
+  access-key-id: ${take_out.access-key-id}
+  access-key-secret: ${take_out.access-key-secret}
+  bucket-name: ${take_out.bucket-name}
+
+alipay:
+  gatewayUrl: ${take_out.alipay.gateway-url:https://openapi-sandbox.dl.alipaydev.com/gateway.do}
+  appId: ${take_out.alipay.app-id}
+  appPrivateKey: ${take_out.alipay.app-private-key}
+  alipayPublicKey: ${take_out.alipay.alipay-public-key}
+  # 可选：一般不需要改
+  format: ${take_out.alipay.format:JSON}
+  charset: ${take_out.alipay.charset:UTF-8}
+  signType: ${take_out.alipay.sign-type:RSA2}
+  # 必填：回调地址（notify必须公网可访问；return给前端页面）
+  notifyUrl: ${take_out.alipay.notify-url}
+  returnUrl: ${take_out.alipay.return-url}
+
+
+
+
