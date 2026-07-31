@@ -30,19 +30,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 @RestController
-@RequestMapping("report")
+@RequestMapping("/report/excel")
 @Slf4j
 public class ExcelReportController {
     @Autowired
     private UserService userService;
-    private static final String PATH = "start/excel/report.xlsx";
+
+    private static final String PATH = "common/excel/report.xlsx";
 
     /**
      * write
      * @return
      */
-    @GetMapping("/excel/export")
-    public Result dowrite() {
+    @PostMapping("/write")
+    public Result writeExcel() {
         File file = new File(PATH);
         String filePath = file.getAbsolutePath();
         File checkFile = new File(filePath);
@@ -67,7 +68,7 @@ public class ExcelReportController {
     /**
      * 读取
      */
-    @PostMapping("/excel/read")
+    @PostMapping("/read")
     public Result doread() {
         File file = new File(PATH);
         String filePath = file.getAbsolutePath();
@@ -92,7 +93,7 @@ public class ExcelReportController {
         }).sheet().doRead();
        return Result.success(dataList);
     }
-    @GetMapping
+    @GetMapping("/download")
     public void download(HttpServletResponse response) {
         String fileName = "导出用户数据.xlsx";
         File local = new File(PATH);

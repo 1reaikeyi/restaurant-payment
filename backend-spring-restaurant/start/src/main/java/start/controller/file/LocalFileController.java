@@ -22,11 +22,12 @@ import java.util.UUID;
 @RequestMapping("/local")
 @Slf4j
 public class LocalFileController {
+    private static final String PATH = "commom/img";
     //本地存储
     @PostMapping
     public Result upload(MultipartFile file) {
         String originalFilename = file.getOriginalFilename();
-        File local = new File("start/img");
+        File local = new File(PATH);
         File path = new File(local.getAbsolutePath());
         if (!path.exists()) {
             path.mkdirs();
@@ -47,7 +48,7 @@ public class LocalFileController {
      */
     @GetMapping
     public void download(String fileName, HttpServletResponse response) {
-        File local = new File("start/img");
+        File local = new File(PATH);
         File path = new File(local.getAbsolutePath(), fileName);
         try {
             if (!path.exists()) {
