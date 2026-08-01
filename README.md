@@ -1,6 +1,8 @@
 # Restaurant-payment 餐饮和支付系统
 
-一个基于 Spring Boot 3 + Vue 3 的全栈餐饮订单和支付系统，前后端分离架构。Spring AI 作为单独服务接入，通过菜品识别对应菜单。提供完整的用户端和管理端功能，支持菜品管理、套餐管理、订单处理、支付集成、实时通信等核心能力。
+restaurant-payment：B2C经营模式，一个餐馆卖家，多个买家。餐馆服务由店长，店员和客户组成。
+
+一个由Spring Boot 3 + Vue 3 的前后端分离架构，中间件使用redis，主业务为餐饮订单和支付的全栈系统，同时Spring AI（这里使用spring-ai-starter-model-openai） 作为单独服务接入，通过菜品识别对应菜单。提供完整的用户端和管理端功能，支持菜品管理、套餐管理、订单处理、支付集成、实时通信等核心能力。
 
 ------
 
@@ -69,10 +71,12 @@ restaurant-payment/
 
 - JDK 17+
 - Spring Boot 3+
-- Node.js 20.19.0+ 或 22.12.0+
+- Spring AI 1.1+
+- Node.js 20.19.0
 - MySQL 8.0+
 - Redis 7.0+
 - Maven 3.8+
+- 以上为最低配置
 
 ---
 

@@ -1,12 +1,16 @@
 package service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import org.springframework.stereotype.Repository;
-import pojo.entity.Dish;
-import repository.DishMapper;
-import service.ISevcive.DishService;
+import mapper.DishMapper;
+import org.springframework.stereotype.Service;
+import model.entity.Dish;
+import service.DishService;
 
-@Repository
+/**
+ * 菜品 Service（对应 dish 表）
+ */
+@Service
 public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements DishService {
+
 
 }

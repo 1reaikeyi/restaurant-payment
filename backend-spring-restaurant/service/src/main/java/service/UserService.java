@@ -1,0 +1,10 @@
+package service;
+
+import com.baomidou.mybatisplus.extension.service.IService;
+import model.entity.User;
+
+/**
+ * 用户 Service（对应 user 表）
+ */
+public interface UserService extends IService<User> {
+}

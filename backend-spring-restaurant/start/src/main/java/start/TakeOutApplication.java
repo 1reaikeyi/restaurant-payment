@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 // 扫描bean组件
 @ComponentScan(basePackages = {"common","service", "start"})
 // 扫描mapper接口
-@MapperScan("repository")
+@MapperScan("mapper")
 //aop
 @EnableAspectJAutoProxy(proxyTargetClass = true)
 // 开启spring-cache缓存

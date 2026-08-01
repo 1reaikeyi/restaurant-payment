@@ -1,53 +1,3 @@
-CREATE DATABASE  IF NOT EXISTS `use_take_out` ;
--- ----------------------------
--- 表结构：address_book（地址簿）
--- ----------------------------
--- auto-generated definition
-create table address_book
-(
-    id            bigint auto_increment comment '主键'
-        primary key,
-    user_id       bigint                       not null comment '用户id',
-    consignee     varchar(50)                  null comment '收货人',
-    sex           varchar(2)                   null comment '性别',
-    phone         varchar(11)                  not null comment '手机号',
-    province_code varchar(12) charset utf8mb4  null comment '省级区划编号',
-    province_name varchar(32) charset utf8mb4  null comment '省级名称',
-    city_code     varchar(12) charset utf8mb4  null comment '市级区划编号',
-    city_name     varchar(32) charset utf8mb4  null comment '市级名称',
-    district_code varchar(12) charset utf8mb4  null comment '区级区划编号',
-    district_name varchar(32) charset utf8mb4  null comment '区级名称',
-    detail        varchar(200) charset utf8mb4 null comment '详细地址',
-    label         varchar(100) charset utf8mb4 null comment '标签',
-    is_default    bigint default 0             not null comment '默认 0 否 1是'
-)
-    comment '地址簿' collate = utf8mb3_bin;
-
--- ----------------------------
--- 表结构：category（分类表，按 type 分组）
--- ----------------------------
--- auto-generated definition
-create table category
-(
-    id          bigint auto_increment comment '主键'
-        primary key,
-    type        bigint           null comment '分类分组标识（如：1-第一组，2-第二组）',
-    name        varchar(32)      not null comment '分类名称',
-    sort        bigint default 0 not null comment '顺序',
-    status      bigint           null comment '启用状态 0:禁用，1:启用',
-    create_time datetime         null comment '创建时间',
-    update_time datetime         null comment '更新时间',
-    create_user bigint           null comment '创建人',
-    update_user bigint           null comment '修改人',
-    constraint idx_category_name
-        unique (name)
-)
-    comment '菜品及套餐分类' collate = utf8mb3_bin;
-
--- ----------------------------
--- 表结构：dish（菜品）
--- ----------------------------
--- auto-generated definition
 create table dish
 (
     id          bigint auto_increment comment '主键'
@@ -67,24 +17,16 @@ create table dish
 )
     comment '菜品' collate = utf8mb3_bin;
 
--- ----------------------------
--- 表结构：dish_flavor（菜品口味关系表）
--- ----------------------------
--- auto-generated definition
-create table dish_flavor
+create table dish_detail
 (
-    id      bigint auto_increment comment '主键'
+    id         bigint auto_increment comment '主键'
         primary key,
-    dish_id bigint       not null comment '菜品',
-    name    varchar(32)  null comment '口味名称',
-    value   varchar(255) null comment '口味数据list'
+    dish_id    bigint       not null comment '菜品',
+    key_type   varchar(32)  null comment '标签',
+    value_list varchar(255) null comment '标签详细，用,隔开'
 )
     comment '菜品口味关系表' collate = utf8mb3_bin;
 
--- ----------------------------
--- 表结构：employee（员工信息）
--- ----------------------------
--- auto-generated definition
 create table employee
 (
     id          bigint auto_increment comment '主键'
@@ -92,9 +34,10 @@ create table employee
     name        varchar(32)      not null comment '在职部门',
     username    varchar(32)      not null comment '用户名',
     password    varchar(64)      not null comment '密码',
+    avater      varchar(64)      null comment '头像',
+    email       varchar(32)      not null comment '邮箱',
     phone       varchar(11)      not null comment '手机号',
     sex         varchar(2)       not null comment '性别',
-    id_number   varchar(18)      not null comment '身份证号',
     status      bigint default 1 not null comment '状态 0:禁用，1:启用',
     create_time datetime         null comment '创建时间',
     update_time datetime         null comment '更新时间',
@@ -105,10 +48,34 @@ create table employee
 )
     comment '员工信息' collate = utf8mb3_bin;
 
--- ----------------------------
--- 表结构：order_detail（订单明细表）
--- ----------------------------
--- auto-generated definition
+create table `order`
+(
+    id                      bigint auto_increment comment '主键'
+        primary key,
+    status                  bigint default 1 not null comment '订单状态
+1待支付：下单未付款
+2待商家接单：已付款，商家还没接单
+3商家接单,制作中：商家确认接单，正在做菜
+4待骑手取餐：商家出餐完成，骑手还没到店
+5骑手已取餐，配送中：骑手拿到餐，在路上，实时看定位
+6骑手已送达：骑手点送达，等待用户确认
+7订单已完成：系统自动确认收货
+8订单已取消：未接单退款、商家拒单、超时取消、售后全额退款',
+    user_id                 bigint           not null comment '下单用户',
+    username                varchar(32)      null comment '用户名称',
+    consignee               varchar(32)      null comment '收货人',
+    phone                   varchar(11)      null comment '手机号',
+    address_id              bigint           not null comment '地址id',
+    address                 varchar(255)     null comment '地址',
+    pay_status              bigint default 0 not null comment '关联orderPay',
+    remark                  varchar(100)     null comment '备注',
+    delivery_status         mediumtext       null comment '配送方式：1立即送出  0选择具体时间',
+    start_delivery_time     datetime         null comment '配送时间',
+    estimated_delivery_time datetime         null comment '预计送达时间',
+    delivery_time           datetime         null comment '送达时间'
+)
+    comment '订单表' collate = utf8mb3_bin;
+
 create table order_detail
 (
     id               bigint auto_increment comment '主键'
@@ -117,8 +84,8 @@ create table order_detail
     image            varchar(255)     null comment '图片',
     order_id         bigint           not null comment '订单id',
     dish_id          bigint           null comment '菜品id',
-    setmeal_id       bigint           null comment '套餐id',
-    dish_flavor      varchar(50)      null comment '口味',
+    plan_id          bigint           null comment '套餐id',
+    dish_detail      varchar(50)      null comment '口味',
     number           bigint default 1 not null comment '数量',
     amount           decimal(10, 2)   not null comment '金额',
     pack_amount      bigint           null comment '打包费',
@@ -126,42 +93,44 @@ create table order_detail
 )
     comment '订单明细表' collate = utf8mb3_bin;
 
--- ----------------------------
--- 表结构：orders（订单表）
--- ----------------------------
--- auto-generated definition
-create table orders
+create table order_pay
 (
-    id                      bigint auto_increment comment '主键'
+    id               bigint auto_increment comment '主键id'
         primary key,
-    status                  bigint default 1 not null comment '订单状态 1待付款 2待接单 3已接单 4派送中 5已完成 6已取消 7退款',
-    user_id                 bigint           not null comment '下单用户',
-    username                varchar(32)      null comment '用户名称',
-    consignee               varchar(32)      null comment '收货人',
-    phone                   varchar(11)      null comment '手机号',
-    address_book_id         bigint           not null comment '地址id',
-    address                 varchar(255)     null comment '地址',
-    order_time              datetime         not null comment '下单时间',
-        pay_method              bigint default 1 not null comment '支付方式 1微信,2支付宝',
-    pay_status              bigint default 0 not null comment '支付状态 0未支付 1已支付 2退款',
-    checkout_time           datetime         null comment '结账时间',
-    amount                  decimal(10, 2)   not null comment '实收金额',
-    remark                  varchar(100)     null comment '备注',
-    cancel_reason           varchar(255)     null comment '订单取消原因',
-    rejection_reason        varchar(255)     null comment '订单拒绝原因',
-    cancel_time             datetime         null comment '订单取消时间',
-    delivery_status         mediumtext       null comment '配送方式：1立即送出  0选择具体时间',
-    start_delivery_time     datetime         null comment '配送时间',
-    estimated_delivery_time datetime         null comment '预计送达时间',
-    delivery_time           datetime         null comment '送达时间'
+    order_id         bigint           null comment '关联orderId',
+    order_time       datetime         not null comment '下单时间',
+    pay_method       bigint default 1 not null comment '支付方式 1微信,2支付宝',
+    pay_status       bigint default 0 not null comment '支付状态 0未支付 1已支付 2退款',
+    checkout_time    datetime         null comment '结账时间',
+    amount           decimal(10, 2)   not null comment '实收金额',
+    remark           varchar(100)     null comment '备注',
+    cancel_reason    varchar(255)     null comment '订单取消原因',
+    rejection_reason varchar(255)     null comment '订单拒绝原因',
+    cancel_time      datetime         null comment '取消时间',
+    create_time      datetime         null comment '创建时间',
+    update_time      datetime         null comment '更新时间',
+    create_user      bigint           null comment '创建人',
+    update_user      bigint           null comment '修改人'
 )
-    comment '订单表' collate = utf8mb3_bin;
+    comment '订单状态';
 
--- ----------------------------
--- 表结构：setmeal（套餐）
--- ----------------------------
--- auto-generated definition
-create table setmeal
+create table order_shopping
+(
+    id          bigint auto_increment comment '主键'
+        primary key,
+    name        varchar(32)      null comment '商品名称',
+    image       varchar(255)     null comment '图片',
+    user_id     bigint           not null comment '用户ID',
+    dish_id     bigint           null comment '菜品id',
+    setmeal_id  bigint           null comment '套餐id',
+    dish_flavor varchar(50)      null comment '口味',
+    number      bigint default 1 not null comment '数量',
+    amount      decimal(10, 2)   not null comment '金额',
+    create_time datetime         null comment '创建时间'
+)
+    comment '购物车' collate = utf8mb3_bin;
+
+create table plan
 (
     id          bigint auto_increment comment '主键'
         primary key,
@@ -180,57 +149,67 @@ create table setmeal
 )
     comment '套餐' collate = utf8mb3_bin;
 
--- ----------------------------
--- 表结构：setmeal_dish（套餐菜品关系）
--- ----------------------------
--- auto-generated definition
-create table setmeal_dish
+create table plan_detail
 (
-    id         bigint auto_increment comment '主键'
+    id      bigint auto_increment comment '主键'
         primary key,
-    setmeal_id bigint         null comment '套餐id',
-    dish_id    bigint         null comment '菜品id',
-    name       varchar(32)    null comment '菜品名称（冗余字段）',
-    price      decimal(10, 2) null comment '菜品单价（冗余字段）',
-    copies     bigint         null comment '菜品份数'
+    plan_id bigint         null comment '对应套餐',
+    dish_id varchar(16)    null comment '关联(dashId,逗号分开)',
+    name    varchar(32)    null comment '菜品名称（冗余字段）',
+    price   decimal(10, 2) null comment '菜品单价（冗余字段）',
+    copies  bigint         null comment '菜品份数'
 )
     comment '套餐菜品关系' collate = utf8mb3_bin;
 
--- ----------------------------
--- 表结构：shopping_cart（购物车）
--- ----------------------------
--- auto-generated definition
-create table shopping_cart
+create table restaurant_category
 (
     id          bigint auto_increment comment '主键'
         primary key,
-    name        varchar(32)      null comment '商品名称',
-    image       varchar(255)     null comment '图片',
-    user_id     bigint           not null comment '用户ID',
-    dish_id     bigint           null comment '菜品id',
-    setmeal_id  bigint           null comment '套餐id',
-    dish_flavor varchar(50)      null comment '口味',
-    number      bigint default 1 not null comment '数量',
-    amount      decimal(10, 2)   not null comment '金额',
-    create_time datetime         null comment '创建时间'
+    name        varchar(32)      not null comment '分类名称',
+    type        bigint           null comment '类型   1 菜品分类 2 套餐分类',
+    sort        bigint default 0 not null comment '顺序',
+    status      bigint           null comment '启用状态 0:禁用，1:启用',
+    create_time datetime         null comment '创建时间',
+    update_time datetime         null comment '更新时间',
+    create_user bigint           null comment '创建人',
+    update_user bigint           null comment '修改人',
+    constraint idx_category_name
+        unique (name)
 )
-    comment '购物车' collate = utf8mb3_bin;
+    comment '菜品及套餐分类' collate = utf8mb3_bin;
 
--- ----------------------------
--- 表结构：user（用户信息）
--- ----------------------------
--- auto-generated definition
 create table user
 (
     id          bigint auto_increment comment '主键'
         primary key,
     username    varchar(32)  null comment '姓名',
-    openid      varchar(45)  null comment '唯一标识(密码)',
+    password    varchar(64)  null comment '密码',
     phone       varchar(11)  null comment '手机号',
     sex         varchar(2)   null comment '性别',
     id_number   varchar(18)  null comment '身份证号',
     avatar      varchar(500) null comment '头像',
     create_time datetime     null comment '创建时间',
-    is_delete  bigint        null comment '0:注销 1:启用'
+    status      bigint       null comment '0:注销 1:启用'
 )
     comment '用户信息' collate = utf8mb3_bin;
+
+create table user_address
+(
+    id            bigint auto_increment comment '主键'
+        primary key,
+    user_id       bigint                       not null comment '用户id',
+    consignee     varchar(50)                  null comment '收货人',
+    sex           varchar(2)                   null comment '性别',
+    phone         varchar(11)                  not null comment '手机号',
+    province_code varchar(12) charset utf8mb4  null comment '省级区划编号',
+    province_name varchar(32) charset utf8mb4  null comment '省级名称',
+    city_code     varchar(12) charset utf8mb4  null comment '市级区划编号',
+    city_name     varchar(32) charset utf8mb4  null comment '市级名称',
+    district_code varchar(12) charset utf8mb4  null comment '区级区划编号',
+    district_name varchar(32) charset utf8mb4  null comment '区级名称',
+    detail        varchar(200) charset utf8mb4 null comment '详细地址',
+    label         varchar(100) charset utf8mb4 null comment '标签',
+    is_default    bigint default 0             not null comment '默认 0 否 1是'
+)
+    comment '地址簿' collate = utf8mb3_bin;
+

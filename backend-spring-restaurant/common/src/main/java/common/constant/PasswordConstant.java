@@ -6,6 +6,6 @@ package common.constant;
 public class PasswordConstant {
 
     public static final String PASSWORD = "123456";
-    public static final String SECRET = "secret";
+    public static final String SECURITY_CODE = "0123456789";
 
 }

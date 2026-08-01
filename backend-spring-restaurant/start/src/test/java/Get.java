@@ -1,5 +1,5 @@
 import org.junit.jupiter.api.Test;
-import pojo.entityenum.OrderStatusEnum;
+import model.entityenum.OrderStatusEnum;
 
 import java.time.LocalDateTime;
 
