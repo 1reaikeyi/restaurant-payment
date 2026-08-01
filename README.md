@@ -33,8 +33,6 @@ restaurant-payment：B2C经营模式，一个餐馆卖家，多个买家。餐�
 restaurant-payment/
 ├── backend-spring-restaurant/            # 后端代码（Spring Boot 3 多模块）
 │   ├── common/                           # 公共模块
-│   │   ├── excel/                        # Excel模板文件
-│   │   └── img/                          # 图片资源
 │   │
 │   ├── model/                            # 数据传输对象
 │   │
@@ -42,9 +40,11 @@ restaurant-payment/
 │   │
 │   ├── service/                          # 业务逻辑模块
 │   │
-│   ├── ai-see/                           # AI视觉识别服务（独立模块）
-│   │
-│   └── start/                            # 启动模块
+│   └── start/                            # 主业务启动模块
+│   	├── excel/                        # Excel模板文件
+│   	├── chart_js/                     # 数据可视化文件
+│   	└── img/                          # 图片资源
+│   ├── ai-see/                           # AI视觉识别服务（独立服务）
 │
 ├── frontend-vue-admin-restaurant/        # 前端管理端（Vue 3）
 │   ├── src/
@@ -57,14 +57,15 @@ restaurant-payment/
 │   └── package.json
 │
 ├── database-sql/                         # 数据库脚本目录
-│   ├── sql.txt                           # 数据库初始化SQL
-│   └── 数据库设计文档.md                   # 完整的数据库设计说明
+│   ├── sql.txt                           # 数据库create table
+│	├── sql插入数据.txt                    # 数据库初始化SQL
+│   └── 数据库设计文档.md                   # 数据库设计说明
 │
 └── 说明/                                 # 项目说明文档
-    ├── 原型功能/                          # 前端原型截图
-    ├── 支付功能结果/                       # 支付流程截图
-    ├── 用户端api接口文档.html              # 用户端API接口文档
-    └── 管理端api接口文档.html              # 管理端API接口文档
+    ├── 原型功能/                         # 前端原型截图
+    ├── 支付功能结果/                      # 支付流程截图
+    ├── employee的api文档.md              # 管理端
+    └── user的api文档.md                  # 用户端
 ```
 
 # 环境要求
@@ -72,7 +73,7 @@ restaurant-payment/
 - JDK 17+
 - Spring Boot 3+
 - Spring AI 1.1+
-- Node.js 20.19.0
+- Node.js 20.19.+
 - MySQL 8.0+
 - Redis 7.0+
 - Maven 3.8+

@@ -6,7 +6,6 @@ import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.stereotype.Component;
-import start.annotation.Info;
 
 import java.lang.reflect.Method;
 @Slf4j
@@ -14,7 +13,7 @@ import java.lang.reflect.Method;
 @Component
 public class ServiceInterceptAspect {
 
-    @Around("@annotation(start.annotation.Info)")
+    @Around("@annotation(start.aop.Info)")
     public Object interceptServiceMethod(ProceedingJoinPoint joinPoint) throws Throwable {
         // 1. 获取注解信息和目标方法信息
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();

@@ -15,7 +15,7 @@ take_out:
     password: ${MYSQL_PASSWORD}
     database: 0
 
-#文件上传
+#文件上传配置
   # 阿里云OSS 地域节点（服务访问地址）
   endpoint: https://oss-cn-beijing.aliyuncs.com
   # 阿里云身份凭证ID（相当于“账号”）
@@ -26,10 +26,9 @@ take_out:
   bucket-name: java-web-ai-wangnian
 #  region: cn-beijing
 
-
-# 支付宝支付
+# 支付宝支付配置
   alipay:
-    app-id: 9021000162662012
+    app-id: ${PATH_pay_alibaba_appid}
     app-private-key: ${PATH_pay_alibaba_private}
     alipay-public-key: ${PATH_pay_alibaba_public}
     notify-url: https://localhost:8080/pay/notify

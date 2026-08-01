@@ -1,57 +1,66 @@
 spring:
+  # 项目配置文件
   profiles:
     active: dev
+  # 数据库配置
   datasource:
     driver-class-name: ${take_out.datasource.driver-class-name}
     url: jdbc:mysql://${take_out.datasource.host}:${take_out.datasource.port}/${take_out.datasource.database}
     username: ${take_out.datasource.username}
     password: ${take_out.datasource.password}
+  # redis配置文件
   data:
     redis:
       host: ${take_out.redis.host}
       port: ${take_out.redis.port}
       password: ${take_out.redis.password}
       database: ${take_out.redis.database}
+  # 缓存配置
   cache:
     type: redis
-
-  config:
-    import: classpath:mybatis-config.yml
+  # 文件上传配置
   servlet:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
-
+# Mybatis-plus配置
+mybatis-plus:
+  mapper-locations: classpath:mapper/**/*.xml
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    #开启驼峰命名
+    map-underscore-to-camel-case: true
+# 日志配置
 logging:
   level:
     take_out:
       web_controller: ${take_out.logging:info}
+# jwt配置
 jwt:
   # 设置jwt签名加密时使用的秘钥
-  admin-secret-key: 小米xiaomi_secret_key_for_jwt_token_generation
+  admin-secret-key: huawei_secret_for_spring_security_generation_as_jwt_to_use
   # 设置jwt过期时间
   admin-ttl: 864000000
   # 设置前端传递过来的令牌名称
   admin-token-name: token
   # 设置jwt签名加密时使用的秘钥
-  user-secret-key: 小米xiaomi_secret_key_for_jwt_token_generation
+  user-secret-key: huawei_secret_for_spring_security_generation_as_jwt_to_use
   # 设置jwt过期时间
   user-ttl: 864000000
   # 设置前端传递过来的令牌名称
   user-token-name: token
-
+# 阿里云OSS配置
 alioss:
   endpoint: ${take_out.endpoint}
   access-key-id: ${take_out.access-key-id}
   access-key-secret: ${take_out.access-key-secret}
   bucket-name: ${take_out.bucket-name}
-
+# 支付宝支付配置
 alipay:
   gatewayUrl: ${take_out.alipay.gateway-url:https://openapi-sandbox.dl.alipaydev.com/gateway.do}
   appId: ${take_out.alipay.app-id}
   appPrivateKey: ${take_out.alipay.app-private-key}
   alipayPublicKey: ${take_out.alipay.alipay-public-key}
-  # 可选：一般不需要改
   format: ${take_out.alipay.format:JSON}
   charset: ${take_out.alipay.charset:UTF-8}
   signType: ${take_out.alipay.sign-type:RSA2}
