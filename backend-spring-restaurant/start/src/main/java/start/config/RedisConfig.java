@@ -30,6 +30,7 @@ public class RedisConfig {
         PolymorphicTypeValidator typeValidator = BasicPolymorphicTypeValidator.builder()
                 .allowIfSubType("pojo.")
                 .allowIfSubType("common.")
+                .allowIfSubType("model.")   // 放行 model.entity.* 等实体类（如 RestaurantCategory）
                 .allowIfSubType("java.util.")
                 .allowIfSubType("java.lang.")
                 .build();
@@ -57,8 +58,7 @@ public class RedisConfig {
         RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer(redisMapper)))
-                .entryTtl(Duration.ofMinutes(30))
-                .computePrefixWith(cacheName -> cacheName + ":");
+                .entryTtl(Duration.ofMinutes(30));
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultConfig)
