@@ -820,7 +820,7 @@ public static OperationType ok(String operation, Object message) {
 
 Q：`@OperationLogging` 注解看似没生效，日志没输出？
 
-> A：早期 `OperationType.ok()/error()` 用的是 `log.debug(...)`，Spring Boot 默认日志级别是 INFO，debug 级别日志不输出。修复为 `log.info(...)`，操作日志在默认配置下可见。也可在 `application.yml` 中开启 `logging.level.start.oparation: debug` 替代。
+> 可用于debug运维，也可以直接使用info进行调试，根据日志等级配置
 
 Q：为什么异常要继续抛出？
 
@@ -937,7 +937,7 @@ Q：Function Calling 怎么触发？
 
 Q：模型用哪个？
 
-> A：`application.properties` 配置 `spring.ai.openai.base-url=https://api.siliconflow.cn`，用硅基流动的 OpenAI 兼容接口，模型 `Qwen/Qwen3.5-397B-A17B`。Spring AI 的 `spring-ai-starter-model-openai` 可对接任何 OpenAI 兼容 API，不限于 OpenAI 官方。
+> A：`application.properties` 配置 `spring.ai.openai，OpenAI 兼容接口，模型 ` 可对接任何 OpenAI 兼容 API，更加方便切换模型和平台，灵活性更高。
 
 ---
 
@@ -1094,7 +1094,7 @@ Q：为什么不用 LangChain4j 而用 Spring AI Alibaba Graph？
 
 | 依赖 | 版本 | 功能支撑 |
 | :--- | :--- | :--- |
-| Spring Boot Starter Data Redis | 3.3.8 | **缓存策略**：@Cacheable(key="#type") 按 type 区分缓存；@CacheEvict(allEntries=true) 写后清除；RedisCacheManager 统一 TTL 30 分钟 |
+| Spring Boot Starter Data Redis | 3.3.8 | **缓存策略**：@Cacheable(key="#type") 按 type 区分缓存；@CacheEvict(allEntries=true) 写后清除；分类目录30到2小时，本文使用RedisCacheManager 统一 TTL 30 分钟 |
 | MyBatis Plus | 3.5.9 | RestaurantCategoryMapper 继承 BaseMapper；LambdaQuery 实现按 type/name 分页查询 |
 | Hutool All | 5.8.26 | BeanUtil 进行 DTO 转 Entity（RestaurantCategoryDTO → RestaurantCategory） |
 
@@ -1160,7 +1160,7 @@ public class SingleFilter extends OncePerRequestFilter {
 ```
 > 本项目改进：拆为 `UserRefreshRequestFilter` + `EmployeeRefreshRequestFilter` 两个过滤器，各自只处理自己类型的 Token，非自己类型的直接放行。职责单一，互不干扰。
 
-**问题2：操作日志用 debug 级别**
+**问题2：操作日志，aop切入定位接口那些成功那些失败，方便运维**
 
 ```java
 // 其他人写法 - 看不到日志！

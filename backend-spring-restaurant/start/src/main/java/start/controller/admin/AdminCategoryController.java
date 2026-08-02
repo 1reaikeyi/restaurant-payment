@@ -36,8 +36,8 @@ public class AdminCategoryController {
         restaurantCategoryService.save(restaurantCategory);
         return Result.success(OperationEnum.CREATE+"--"+restaurantCategory.getId());
     }
-    @OperationLogging(operation = OperationEnum.READ)
 
+    @OperationLogging(operation = OperationEnum.READ)
     @GetMapping("/all")
     public Result readAll(CategoryPageDTO categoryPageDTO) {
         LambdaQueryWrapper<RestaurantCategory> queryWrapper = new LambdaQueryWrapper<>();
@@ -48,14 +48,15 @@ public class AdminCategoryController {
         IPage<RestaurantCategory> restaurantCategoryIPage = restaurantCategoryService.page(page, queryWrapper);
         return Result.success(restaurantCategoryIPage);
     }
-    @OperationLogging(operation = OperationEnum.READ)
 
+    @OperationLogging(operation = OperationEnum.READ)
     @Cacheable(key = "#type")
     @GetMapping
     public Result readByType(@RequestParam("type") Long type) {
         List<RestaurantCategory> restaurantCategoryList = restaurantCategoryService.lambdaQuery().eq(RestaurantCategory::getType, type).list();
         return Result.success(restaurantCategoryList);
     }
+
     @OperationLogging(operation = OperationEnum.UPDATE)
     @CacheEvict(allEntries = true)
     @PutMapping
@@ -64,6 +65,7 @@ public class AdminCategoryController {
         restaurantCategoryService.updateById(restaurantCategory);
         return Result.success(OperationEnum.UPDATE+"--"+restaurantCategory.getId());
     }
+
     @OperationLogging(operation = OperationEnum.DELETE)
     @CacheEvict(allEntries = true)
     @DeleteMapping
