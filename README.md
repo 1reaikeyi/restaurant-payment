@@ -310,10 +310,6 @@ public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory, 
 
 ### 问题修复阶段
 
-Q：访问 `/admin/category?type=1` 报 `EL1008E: Property 'type' not found`
-
-> A：Spring Cache 注解的 SpEL 表达式必须用 `#` 前缀引用方法参数。错误写法 `key="type"` 会被解析为访问根对象的属性；正确写法 `key="#type"` 才是引用方法参数 `type`。修复后缓存 Key 正确按 type 区分。
-
 Q：为什么更新/删除用 `@CacheEvict(allEntries=true)` 而不是按 key 删除？
 
 > A：分类查询接口是「按 type 查列表」，缓存的是整个 List。当更新或删除任意一条分类时，受影响的是整个 type 列表，精确按 key 删除很难覆盖所有受影响的缓存条目。`allEntries=true` 直接清空 `restaurantCategory:type` 命名空间下所有缓存，实现简单且不会脏数据。
@@ -364,10 +360,6 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
 
 ### 问题修复阶段
 
-Q：为什么 Controller 看起来是空的？
-
-> A：模块采用「基础架构先行」策略，`AdminDishController` / `DishController` 已注入 `DishService`、`DishDetailService`、`StringRedisTemplate`，继承 `ServiceImpl<DishMapper, Dish>` 后天然具备完整的单表 CRUD 能力。具体业务接口（如带口味的菜品分页）可按需补充，无需重写基础数据访问层。
-
 Q：菜品口味为什么不和菜品放一张表？
 
 > A：一个菜品对应多个口味是典型的一对多关系。若放一张表会产生大量冗余字段或 JSON 字段，不利于按口味筛选。拆分为 `dish` + `dish_detail` 主子表，通过 `dish_id` 关联，既符合范式，又便于 MyBatis-Plus 单表操作。
@@ -417,10 +409,6 @@ public List<Setmeal> queryByMultiCondition(@ToolParam SetmealToolParam param) {
 ```
 
 ### 问题修复阶段
-
-Q：为什么套餐表叫 `plan` 而不是 `setmeal`？
-
-> A：项目早期沿用 `setmeal` 命名，后统一重构为 `plan`（套餐的通用英文）以提升可读性。AI 模块 `ai-see` 中的实体类仍保留 `Setmeal` 命名（独立服务，独立实体），通过 `SetmealMapper` 直连同一张数据库表。
 
 Q：套餐和菜品为什么共用一张分类表？
 
@@ -487,10 +475,6 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
 Q：订单状态为什么要用枚举而不用魔法数字？
 
 > A：8 种状态如果直接用 `1`/`2`/`3` 等数字，代码可读性差且容易写错。用 `OrderStatusEnum` 枚举 + `@EnumValue` 注解，既保证类型安全，又让 MyBatis-Plus 自动完成「枚举 ↔ 数据库 code」的双向映射，无需手写转换逻辑。
-
-Q：定时任务为什么被注释了？
-
-> A：`OrderTask` 中的 `@Scheduled(cron = "0 0 * * * ?")` 每小时扫描超时订单的逻辑已写好但被注释。原因是定时任务依赖完整的订单状态字段和配送时间字段，需配合订单业务逻辑完善后启用。当前保留代码结构，待业务补全后取消注释即可。注释中详细说明了 cron 6 字段表达式（秒 分 时 日 月 周）的含义，便于后续维护。
 
 ---
 

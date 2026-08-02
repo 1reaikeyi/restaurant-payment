@@ -41,6 +41,11 @@ public class User implements Serializable {
     @JsonIgnore
     @TableField("password")
     private String password;
+    /**
+     * 邮箱
+     */
+    @TableField("email")
+    private String email;
 
     /**
      * 手机号

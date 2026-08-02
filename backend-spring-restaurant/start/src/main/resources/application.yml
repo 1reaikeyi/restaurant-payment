@@ -26,6 +26,9 @@ spring:
   # 缓存配置
   cache:
     type: redis
+    redis:
+      cache-null-values: false
+
   # 文件上传配置
   servlet:
     multipart:

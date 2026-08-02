@@ -30,7 +30,7 @@ public class RedisConfig {
         PolymorphicTypeValidator typeValidator = BasicPolymorphicTypeValidator.builder()
                 .allowIfSubType("pojo.")
                 .allowIfSubType("common.")
-                .allowIfSubType("model.")   // 放行 model.entity.* 等实体类（如 RestaurantCategory）
+                .allowIfSubType("model.")
                 .allowIfSubType("java.util.")
                 .allowIfSubType("java.lang.")
                 .build();

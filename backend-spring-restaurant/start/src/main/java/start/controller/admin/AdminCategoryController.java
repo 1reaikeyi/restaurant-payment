@@ -25,8 +25,10 @@ import java.util.List;
 @RequestMapping("/admin/category")
 @CacheConfig(cacheNames = "restaurantCategory:type")
 public class AdminCategoryController {
+
     @Autowired
     private RestaurantCategoryService restaurantCategoryService;
+
     @OperationLogging(operation = OperationEnum.CREATE)
     @PostMapping
     public Result create(@RequestBody RestaurantCategoryDTO restaurantCategoryDTO) {
@@ -48,7 +50,7 @@ public class AdminCategoryController {
     }
     @OperationLogging(operation = OperationEnum.READ)
 
-    @Cacheable(key = "#type",unless = "#result == null")
+    @Cacheable(key = "#type")
     @GetMapping
     public Result readByType(@RequestParam("type") Long type) {
         List<RestaurantCategory> restaurantCategoryList = restaurantCategoryService.lambdaQuery().eq(RestaurantCategory::getType, type).list();
