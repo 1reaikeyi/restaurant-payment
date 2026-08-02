@@ -8,6 +8,5 @@ import model.entity.Employee;
  */
 
 public interface EmployeeService extends IService<Employee> {
-
-
+    Employee findEmployeename(String username);
 }

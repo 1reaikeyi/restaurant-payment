@@ -2,6 +2,7 @@ package service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import mapper.UserMapper;
+import model.entity.Employee;
 import org.springframework.stereotype.Service;
 import model.entity.User;
 import service.UserService;
@@ -11,4 +12,8 @@ import service.UserService;
  */
 @Service
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
+    @Override
+    public User findUsername(String username) {
+        return super.lambdaQuery().eq(User::getUsername, username).one();
+    }
 }

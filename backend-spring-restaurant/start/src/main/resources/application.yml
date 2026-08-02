@@ -4,17 +4,25 @@ spring:
     active: dev
   # 数据库配置
   datasource:
-    driver-class-name: ${take_out.datasource.driver-class-name}
-    url: jdbc:mysql://${take_out.datasource.host}:${take_out.datasource.port}/${take_out.datasource.database}
-    username: ${take_out.datasource.username}
-    password: ${take_out.datasource.password}
+    driver-class-name: ${restaurant.datasource.driver-class-name}
+    url: jdbc:mysql://${restaurant.datasource.host}:${restaurant.datasource.port}/${restaurant.datasource.database}
+    username: ${restaurant.datasource.username}
+    password: ${restaurant.datasource.password}
   # redis配置文件
   data:
     redis:
-      host: ${take_out.redis.host}
-      port: ${take_out.redis.port}
-      password: ${take_out.redis.password}
-      database: ${take_out.redis.database}
+      host: ${restaurant.redis.host}
+      port: ${restaurant.redis.port}
+      password: ${restaurant.redis.password}
+      database: ${restaurant.redis.database}
+      client-type: lettuce
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 10
+          max-wait: 3000ms
+          max-idle: 8
+          min-idle: 2
   # 缓存配置
   cache:
     type: redis
@@ -33,8 +41,8 @@ mybatis-plus:
 # 日志配置
 logging:
   level:
-    take_out:
-      web_controller: ${take_out.logging:info}
+    restaurant:
+      web_controller: ${restaurant.logging:info}
 # jwt配置
 jwt:
   # 设置jwt签名加密时使用的秘钥
@@ -51,22 +59,22 @@ jwt:
   user-token-name: token
 # 阿里云OSS配置
 alioss:
-  endpoint: ${take_out.endpoint}
-  access-key-id: ${take_out.access-key-id}
-  access-key-secret: ${take_out.access-key-secret}
-  bucket-name: ${take_out.bucket-name}
+  endpoint: ${restaurant.endpoint}
+  access-key-id: ${restaurant.access-key-id}
+  access-key-secret: ${restaurant.access-key-secret}
+  bucket-name: ${restaurant.bucket-name}
 # 支付宝支付配置
 alipay:
-  gatewayUrl: ${take_out.alipay.gateway-url:https://openapi-sandbox.dl.alipaydev.com/gateway.do}
-  appId: ${take_out.alipay.app-id}
-  appPrivateKey: ${take_out.alipay.app-private-key}
-  alipayPublicKey: ${take_out.alipay.alipay-public-key}
-  format: ${take_out.alipay.format:JSON}
-  charset: ${take_out.alipay.charset:UTF-8}
-  signType: ${take_out.alipay.sign-type:RSA2}
+  gatewayUrl: ${restaurant.alipay.gateway-url:https://openapi-sandbox.dl.alipaydev.com/gateway.do}
+  appId: ${restaurant.alipay.app-id}
+  appPrivateKey: ${restaurant.alipay.app-private-key}
+  alipayPublicKey: ${restaurant.alipay.alipay-public-key}
+  format: ${restaurant.alipay.format:JSON}
+  charset: ${restaurant.alipay.charset:UTF-8}
+  signType: ${restaurant.alipay.sign-type:RSA2}
   # 必填：回调地址（notify必须公网可访问；return给前端页面）
-  notifyUrl: ${take_out.alipay.notify-url}
-  returnUrl: ${take_out.alipay.return-url}
+  notifyUrl: ${restaurant.alipay.notify-url}
+  returnUrl: ${restaurant.alipay.return-url}
 
 
 

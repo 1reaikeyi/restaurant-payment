@@ -29,6 +29,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 import start.filter.EmployeeRefreshRequestFilter;
+import start.filter.InformationRequestFilter;
 import start.filter.UserRefreshRequestFilter;
 
 import java.io.IOException;
@@ -111,7 +112,7 @@ public class SecurityConfig {
             StringRedisTemplate stringRedisTemplate) throws Exception {
         UserRefreshRequestFilter userRefreshRequestFilter = new UserRefreshRequestFilter(jwtProperties, stringRedisTemplate);
         EmployeeRefreshRequestFilter employeeRefreshRequestFilter = new EmployeeRefreshRequestFilter(jwtProperties, stringRedisTemplate);
-
+        InformationRequestFilter informationRequestFilter = new InformationRequestFilter();
         http.csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -120,8 +121,9 @@ public class SecurityConfig {
                 .cors(this::crosConfig)
                 .authorizeHttpRequests(auth -> auth
                         // 登录、注册、退出等接口保持放行（需先于 /user/** 拦截规则匹配）
-                        .requestMatchers("/user/register", "/user/login", "/user/logout").permitAll()
-                        // 只拦截 admin、user 下的受保护接口
+                        .requestMatchers("/user/register", "/user/login").permitAll()
+                        .requestMatchers("/admin/register", "/admin/login").permitAll()
+                        // 只拦截
                         .requestMatchers("/admin/**", "/user/**").authenticated()
                         // 其他接口全部放行
                         .anyRequest().permitAll()
@@ -133,8 +135,9 @@ public class SecurityConfig {
                 // user 刷新过滤器（处理 user token，其他 token 放行）
                 .addFilterBefore(userRefreshRequestFilter, UsernamePasswordAuthenticationFilter.class)
                 // emp 刷新过滤器（处理 emp token，其他 token 放行）
-                .addFilterBefore(employeeRefreshRequestFilter, UsernamePasswordAuthenticationFilter.class);
-
+                .addFilterBefore(employeeRefreshRequestFilter, UsernamePasswordAuthenticationFilter.class)
+                // 认证拦截过滤器（在 RefreshFilter 之后）
+                .addFilterBefore(informationRequestFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 

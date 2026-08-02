@@ -7,6 +7,6 @@ public class FillHandleConstant {
 
     public static final String CREATE_TIME_HANDLER = "createTime";
     public static final String UPDATE_TIME_HANDLER = "updateTime";
-    public static final String CREATE_USER_HANDLER = "createrUser";
+    public static final String CREATE_USER_HANDLER = "createUser";
     public static final String UPDATE_USER_HANDLER = "updateUser";
 }

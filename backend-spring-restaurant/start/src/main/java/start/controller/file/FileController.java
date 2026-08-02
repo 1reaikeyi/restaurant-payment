@@ -22,7 +22,8 @@ import java.util.UUID;
 @RequestMapping("/local")
 @Slf4j
 public class FileController {
-    private static final String PATH = "commom/img";
+
+    private static final String PATH = "ku/image";
     //本地存储
     @PostMapping
     public Result upload(MultipartFile file) {
@@ -32,7 +33,7 @@ public class FileController {
         if (!path.exists()) {
             path.mkdirs();
         }
-        log.info("文件路径::{}"+path);
+        log.info("文件路径::{}", path);
         String saveName = UUID.randomUUID().toString() +
                 originalFilename.substring(originalFilename.lastIndexOf("."));
         try {
@@ -40,7 +41,7 @@ public class FileController {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        log.info("文件上传成功: {}"+ path, saveName);
+        log.info("文件上传成功: {} {}", path, saveName);
         return Result.success(path+"::" + saveName);
     }
     /**

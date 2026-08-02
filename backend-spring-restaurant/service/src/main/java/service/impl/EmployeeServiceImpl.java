@@ -13,5 +13,9 @@ import service.EmployeeService;
 @Service
 public class EmployeeServiceImpl extends ServiceImpl<EmployeeMapper, Employee> implements EmployeeService {
 
+    @Override
+    public Employee findEmployeename(String username) {
+        return super.lambdaQuery().eq(Employee::getUsername, username).one();
+    }
 
 }

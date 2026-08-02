@@ -1,6 +1,7 @@
 package start.filter;
 
 import common.constant.JwtConstant;
+import common.constant.RedisPrefixConstant;
 import common.properties.JwtProperties;
 import common.utils.JwtUtil;
 import jakarta.servlet.FilterChain;
@@ -18,12 +19,14 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 import start.security.LoginPrincipal;
 
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import static common.constant.RedisPrefixConstant.RESTAURANT_EMP_AUTHHEADER_PREFIX;
 
 
 /**
@@ -58,22 +61,27 @@ public class EmployeeRefreshRequestFilter extends OncePerRequestFilter {
     protected void doFilterInternal(
             @NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain
-    ) throws ServletException, IOException {
+            @NonNull FilterChain filterChain) throws ServletException, IOException {
+
         String token = extractToken(request);
         if (token == null) {
             // 没有 token，放行，由后面的认证过滤器决定是否 401
             filterChain.doFilter(request, response);
             return;
         }
+
+        boolean shouldContinue = true; // 标记：是否继续放行到 Controller
         try {
             Map<String, Object> claims = JwtUtil.parseJWT(jwtProperties.getAdminSecretKey(), token);
             if (claims == null) {
+                shouldContinue = false;
                 return;
             }
             String type = claims.get(JwtConstant.TYPE) != null ? claims.get(JwtConstant.TYPE).toString() : "user";
             if (!"emp".equals(type)) {
+                // 非 emp 类型 token，直接放行（交给 user 的过滤器或后续逻辑）
                 filterChain.doFilter(request, response);
+                shouldContinue = false;
                 return;
             }
 
@@ -81,10 +89,11 @@ public class EmployeeRefreshRequestFilter extends OncePerRequestFilter {
             String name = claims.get(JwtConstant.EMP_NAME) != null
                     ? claims.get(JwtConstant.EMP_NAME).toString() : "";
 
-            String standardToken = stringRedisTemplate.opsForValue().get(RESTAURANT_EMP_AUTHHEADER_PREFIX + empId);
+            String standardToken = stringRedisTemplate.opsForValue().get(RedisPrefixConstant.EMP_AUTHHEADER_PREFIX + empId);
             if (!token.equals(standardToken)) {
-                log.error("emp Token 验证失败，可能已注销或被篡改, 员工ID: {}", empId);
+                log.error("emp Token 验证失败，已注销登录, 员工ID: {}", empId);
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                shouldContinue = false;
                 return;
             }
 
@@ -96,13 +105,23 @@ public class EmployeeRefreshRequestFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
             // 滑动过期
-            stringRedisTemplate.expire(RESTAURANT_EMP_AUTHHEADER_PREFIX + empId,
+            stringRedisTemplate.expire(RedisPrefixConstant.EMP_AUTHHEADER_PREFIX + empId,
                     jwtProperties.getAdminTtl(), TimeUnit.SECONDS);
 
-            filterChain.doFilter(request, response);
-        } catch (Exception e) {
-            log.error("emp JWT 处理失败: {}", e.getMessage());
+        } catch (ExpiredJwtException e) {
+            // token 已过期 → 401，前端应引导重新登录
+            log.warn("emp Token 已过期: {}", e.getMessage());
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            shouldContinue = false;
+        } catch (JwtException | IllegalArgumentException e) {
+            // 仅处理 JWT 本身的异常（签名错/格式错/claims 缺字段）
+            log.error("emp Token 非法: {}", e.getMessage());
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            shouldContinue = false;
+        }
+
+        if (shouldContinue) {
+            filterChain.doFilter(request, response);
         }
     }
 }

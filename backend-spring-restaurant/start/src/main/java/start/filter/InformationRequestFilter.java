@@ -1,0 +1,45 @@
+package start.filter;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpMethod;
+import org.springframework.lang.NonNull;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+
+@Slf4j
+public class InformationRequestFilter extends OncePerRequestFilter {
+    /**
+     * 跳过不需要认证的公共路径
+     */
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        // OPTIONS 请求（CORS 预检）直接放行
+        if (request.getMethod().equalsIgnoreCase(HttpMethod.OPTIONS.name())) {
+            return true;
+        }
+        return true;
+    }
+
+    @Override
+    protected void doFilterInternal(
+            @NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain
+    ) throws ServletException, IOException {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            log.error("登录请求被拦截: {}", request.getRequestURI());
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+        }
+        filterChain.doFilter(request, response);
+    }
+}
