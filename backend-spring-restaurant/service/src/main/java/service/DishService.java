@@ -13,7 +13,7 @@ public interface DishService extends IService<Dish> {
 
     Dish readCache(Long id);
 
-    void updateCache(Dish dish);
+    Boolean updateCache(Dish dish);
 
-    void daleteCache(List<Long> ids);
+    Boolean deleteCache(List<Long> ids);
 }

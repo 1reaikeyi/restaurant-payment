@@ -19,6 +19,7 @@ import start.security.SecurityContextParam;
 public class OperationType {
     private String operation;
     private Long id;
+    private String type;
     private String status;
     private Object message;
 
@@ -26,10 +27,11 @@ public class OperationType {
         OperationType operationType = new OperationType();
         operationType.operation = operation;
         operationType.id = SecurityContextParam.getCurrentUserId();
+        operationType.type = SecurityContextParam.getCurrentType();
         operationType.status = "SUCCESS";
         operationType.message = message;
         // 改为 info 级别，确保默认日志配置下可见（debug 默认不输出）
-        log.info("用户ID:"+operationType.id+", 执行操作:"+operationType.operation+", "+message+", "+operationType.status);
+        log.info(operationType.type+":ID:"+operationType.id+", 执行操作:"+operationType.operation+", "+message+", "+operationType.status);
         return operationType;
     }
 
@@ -37,10 +39,11 @@ public class OperationType {
         OperationType operationType = new OperationType();
         operationType.operation = operation;
         operationType.id = SecurityContextParam.getCurrentUserId();
+        operationType.type = SecurityContextParam.getCurrentType();
         operationType.status = "ERROR";
         operationType.message = message;
         // 改为 info 级别，确保异常操作日志在默认配置下可见
-        log.info("用户ID:"+operationType.id+", 执行操作:"+operationType.operation+", "+message+", "+operationType.status);
+        log.info(operationType.type+":ID:"+operationType.id+", 执行操作:"+operationType.operation+", "+message+", "+operationType.status);
         return operationType;
     }
 }

@@ -8,8 +8,6 @@ restaurant-payment：B2C经营模式，一个餐馆卖家，多个买家。餐�
 
 # 后端说明
 
-<img src="说明/原型功能/设计.png" alt="设计" style="zoom:75%;" />
-
 **订单状态流转**：
 
 ```
@@ -27,6 +25,15 @@ restaurant-payment：B2C经营模式，一个餐馆卖家，多个买家。餐�
 | 同步支付成功 | <img src="说明/支付功能结果/支付宝3.png" alt="支付" style="zoom: 50%;" /> |
 | 异步检验 | <img src="说明/支付功能结果/支付宝4.png" alt="支付" style="zoom: 50%;" /> |
 
+**第三方授权登录流程图**
+
+| 1    | <img src="说明\支付宝，qq授权登录\ali1.png" alt="支付宝" style="zoom:25%;" /> |
+| ---- | ------------------------------------------------------------ |
+|      | <img src="说明\支付宝，qq授权登录\ali2.png" alt="支付宝" style="zoom:50%;" /> |
+|      | <img src="说明\支付宝，qq授权登录\ali3.png" alt="支付宝" style="zoom:50%;" /> |
+
+
+
 # 项目结构
 
 ```
@@ -35,17 +42,6 @@ restaurant-payment/
 │   ├── common/                           # 公共模块（常量/异常/工具/JwtProperties/AliOssProperties）
 │   │
 │   ├── model/                            # 实体与数据传输对象
-│   │   ├── dto/                          # LoginDTO/UserDTO/EmployeeDTO/PageDTO
-│   │   ├── entity/                       # 实体类（与SQL表名一一对应）
-│   │   │   ├── Employee/User             # 账号实体
-│   │   │   ├── Dish/DishDetail           # 菜品与菜品口味
-│   │   │   ├── Plan/PlanDetail           # 套餐与套餐菜品（原 Setmeal 重命名）
-│   │   │   ├── Order/OrderDetail         # 订单与订单明细
-│   │   │   ├── OrderPay                  # 订单支付（支付信息独立成表）
-│   │   │   ├── OrderShopping             # 购物车（原 ShoppingCart 重命名）
-│   │   │   ├── RestaurantCategory        # 餐厅分类
-│   │   │   └── UserAddress               # 用户地址
-│   │   └── entityenum/                   # 订单/支付/配送状态枚举
 │   │
 │   ├── mapper/                           # 数据访问层（MyBatis-Plus）
 │   │
@@ -53,12 +49,12 @@ restaurant-payment/
 │   │
 │   ├── start/                            # 主业务启动模块
 │   │   ├── aop/                          # Info/OperationLogging 注解 + ServiceInterceptAspect 切面
-│   │   ├── config/                       # SecurityConfig/WebConfig/RedisConfig/JacksonConfig 等
+│   │   ├── config/                       # Config 等
 │   │   ├── controller/                   # 按职责分目录
-│   │   │   ├── admin/                    # 管理端：AdminEmployeeController/AdminCategoryController
-│   │   │   ├── user/                     # 用户端：UserController/CategoryController
-│   │   │   ├── login/                    # 登录入口：LoginByEmailController/LoginByOAuthController（预留）
-│   │   │   ├── file/                     # 文件上传与Excel：FileController/OSSFileController/ExcelReportController
+│   │   │   ├── admin/                    # 管理端
+│   │   │   ├── user/                     # 用户端
+│   │   │   ├── login/                    # 登录入口
+│   │   │   ├── file/                     # 文件上传与Excel
 │   │   │   ├── websocket/                # WebSocket 推送
 │   │   │   ├── timetask/                 # 定时任务（订单超时取消等）
 │   │   │   └── 支付宝/                   # 支付宝支付/退款/回调/OAuthLogin
@@ -126,8 +122,6 @@ restaurant-payment/
 
 ### 策略流程图
 
-常规
-
 ```java
 员工注册 → AdminEmployeeController/register() → BCrypt加密密码 → MySQL保存 → 返回注册成功
 用户注册 → UserController/register()          → BCrypt加密密码 → MySQL保存 → 返回注册成功
@@ -148,13 +142,6 @@ restaurant-payment/
         → InformationRequestFilter（兜底：未认证返回 401）
         → Redis 校验 Token 一致性 → 滑动过期刷新 → 设置 SecurityContext（ROLE_ADMIN/ROLE_USER）
 ```
-第三方授权登录流程图
-
-| 支付宝 | <img src="说明\支付宝，qq授权登录\ali1.png" alt="支付宝" style="zoom:25%;" /> |
-| ------ | ------------------------------------------------------------ |
-|        | <img src="说明\支付宝，qq授权登录\ali2.png" alt="支付宝" style="zoom:25%;" /> |
-|        | <img src="说明\支付宝，qq授权登录\ali3.png" alt="支付宝" style="zoom: 50%;" /> |
-
 ### 编码阶段
 
 ```java
@@ -366,119 +353,13 @@ Q：菜品口味为什么不和菜品放一张表？
 
 ---
 
-## 四、套餐管理模块
+## 四、plan套餐管理模块
 
-### 需求阶段
+## 五、购物管理模块
 
-需求背景：套餐是把多个菜品打包销售的形式，支持套餐起售/停售、按分类查询、价格区间检索。
+## 六、订单管理模块
 
-- 套餐与菜品是多对多关系，一个套餐包含多个菜品
-- 套餐有独立的分类（type=2），与菜品分类共用 `restaurant_category` 表
-- AI 识别模块需要通过套餐描述匹配套餐（见 AI 模块）
-
-### 策略流程图
-
-```java
-套餐 CRUD → PlanService（继承 ServiceImpl<PlanMapper, Plan>）
-        → PlanDetailService（套餐菜品关联子表）
-新增套餐 → 保存 Plan 主表 → 批量保存 PlanDetail（套餐-菜品关联）
-AI 套餐推荐 → SetmealTool.@Tool 方法 → LambdaQueryWrapper 多条件组合查询 → 返回套餐列表
-```
-
-### 编码阶段
-
-```java
-// PlanServiceImpl.java - 套餐基础 Service
-@Service
-public class PlanServiceImpl extends ServiceImpl<PlanMapper, Plan> implements PlanService {
-    // 套餐主表 CRUD，PlanDetail 子表由 PlanDetailService 独立管理
-}
-```
-
-```java
-// AI 模块中的套餐查询工具（见第十节 AI 模块）
-// SetmealTool 提供按 ID/名称/分类/价格区间/状态/描述等多维度查询
-@Tool(description = "套餐多条件组合查询，支持ID/分类ID/名称/价格/状态/描述/时间的任意组合")
-public List<Setmeal> queryByMultiCondition(@ToolParam SetmealToolParam param) {
-    LambdaQueryWrapper<Setmeal> wrapper = new LambdaQueryWrapper<>();
-    if (param.getId() != null) wrapper.eq(Setmeal::getId, param.getId());
-    if (param.getCategoryId() != null) wrapper.eq(Setmeal::getCategoryId, param.getCategoryId());
-    // ...其他条件
-    return setmealMapper.selectList(wrapper);
-}
-```
-
-### 问题修复阶段
-
-Q：套餐和菜品为什么共用一张分类表？
-
-> A：分类表 `restaurant_category` 用 `type` 字段区分：`type=1` 菜品分类，`type=2` 套餐分类。共用一张表减少表数量，分类管理接口统一，缓存策略统一（见第二节）。查询时按 `type` 过滤即可隔离两类数据。
-
----
-
-## 五、订单与购物车模块
-
-### 需求阶段
-
-需求背景：订单是餐饮系统的核心，需支持购物车、下单、状态流转、超时取消等完整流程。
-
-- 订单状态多（8 种状态，见订单状态流转图），状态机复杂
-- 购物车是临时数据，需支持增删改查、按用户隔离
-- 超时未支付的订单需自动取消，释放库存
-
-### 策略流程图
-
-```
-购物车 → OrderShoppingService（继承 ServiceImpl<OrderShoppingMapper, OrderShopping>）
-       → 按用户 ID 隔离，加减菜品数量
-
-下单   → OrderServiceImpl（继承 ServiceImpl<OrderMapper, Order>）
-       → 校验购物车 → 生成订单（Order 主表 + OrderDetail 明细） → 清空购物车 → 待支付
-
-状态流转 → 1 待支付 → 2 待商家接单（支付成功回调）→ 3 制作中 → 4 待骑手取餐
-        → 5 配送中 → 6 已送达 → 7 已完成
-        → 8 已取消（超时/拒单/退款）
-
-超时取消 → OrderTask @Scheduled 定时扫描 → 状态=待支付且超时 → 更新为已取消
-```
-
-### 编码阶段
-
-```java
-// OrderStatusEnum.java - 订单状态枚举（MyBatis-Plus @EnumValue 自动映射）
-public enum OrderStatusEnum {
-    PENDING_PAYMENT(1L, "待支付：下单未付款"),
-    PENDING_MERCHANT_ACCEPT(2L, "待商家接单：已付款，商家还没接单"),
-    MERCHANT_COOKING(3L, "商家接单,制作中：商家确认接单，正在做菜"),
-    PENDING_RIDER_PICK(4L, "待骑手取餐：商家出餐完成，骑手还没到店"),
-    RIDER_DELIVERING(5L, "骑手已取餐，配送中：骑手拿到餐，在路上，实时看定位"),
-    RIDER_ARRIVED(6L, "骑手已送达：骑手点送达，等待用户确认"),
-    COMPLETED(7L, "订单已完成：系统自动确认收货"),
-    CANCELLED(8L, "订单已取消：未接单退款、商家拒单、超时取消、售后全额退款");
-
-    @EnumValue  // MyBatis-Plus 通过此注解将枚举值映射到数据库字段
-    private final Long code;
-    private final String text;
-}
-```
-
-```java
-// OrderServiceImpl.java - 订单基础 Service
-@Service
-public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements OrderService {
-    // 订单主表 CRUD，OrderDetail 明细由 OrderDetailService 管理
-}
-```
-
-### 问题修复阶段
-
-Q：订单状态为什么要用枚举而不用魔法数字？
-
-> A：8 种状态如果直接用 `1`/`2`/`3` 等数字，代码可读性差且容易写错。用 `OrderStatusEnum` 枚举 + `@EnumValue` 注解，既保证类型安全，又让 MyBatis-Plus 自动完成「枚举 ↔ 数据库 code」的双向映射，无需手写转换逻辑。
-
----
-
-## 六、支付宝支付模块
+## 七、支付系统模块
 
 ### 需求阶段
 
@@ -577,7 +458,7 @@ Q：退款为什么要单独查一次？
 
 ---
 
-## 七、文件上传与 Excel 导出模块
+## 八、文件上传与 Excel 导出模块
 
 ### 需求阶段
 
@@ -660,81 +541,6 @@ Q：文件下载中文文件名乱码
 
 ---
 
-## 八、WebSocket 实时通信模块
-
-### 需求阶段
-
-需求背景：商家端需要实时收到新订单提醒（来单提醒），用户端需要实时看到订单状态变化。传统 HTTP 轮询延迟高、服务器压力大。
-
-- 订单状态变化需实时推送到管理端（来单提醒）
-- 多个客户端（店长、店员）需同时接收消息
-- 长连接需管理 Session 生命周期
-
-### 策略流程图
-
-```
-客户端连接 → ws://host:port/websocket/{id} → @OnOpen → sessionMap.put(id, session)
-客户端发消息 → @OnMessage → 打印日志（业务可扩展）
-服务端推送 → sendToAllClient(message) → 遍历 sessionMap → session.getBasicRemote().sendText()
-连接断开   → @OnClose → sessionMap.remove(id)
-```
-
-### 编码阶段
-
-```java
-// WebSocketServer.java - 原生 Jakarta WebSocket 实现
-@Component
-@ServerEndpoint("/websocket/{id}")  // 路径参数 id 标识客户端
-public class WebSocketServer {
-
-    // 静态 Map 存放所有会话（@ServerEndpoint 每次连接会 new 实例，必须用 static）
-    private static Map<String, Session> sessionMap = new HashMap<>();
-
-    @OnOpen
-    public void onOpen(Session session, @PathParam("id") String id) {
-        sessionMap.put(id, session);  // 建立连接时加入会话池
-    }
-
-    @OnClose
-    public void onClose(@PathParam("id") String id) {
-        sessionMap.remove(id);  // 断开时移除，避免内存泄漏
-    }
-
-    // 群发消息：来单提醒时调用，所有管理端客户端都能收到
-    public void sendToAllClient(String message) {
-        for (Session session : sessionMap.values()) {
-            try {
-                session.getBasicRemote().sendText(message);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-    }
-}
-```
-
-```java
-// WebSocketConfig.java - 注册 ServerEndpointExporter
-@Configuration
-public class WebSocketConfig {
-    @Bean
-    public ServerEndpointExporter serverEndpointExporter() {
-        return new ServerEndpointExporter();  // 启用原生 @ServerEndpoint 支持
-    }
-}
-```
-
-### 问题修复阶段
-
-Q：为什么 sessionMap 必须是 `static`？
-
-> A：`@ServerEndpoint` 注解的类，容器每次新连接都会创建一个新实例（非单例）。如果 `sessionMap` 是实例变量，每个实例有自己的 Map，无法共享会话。用 `static` 让所有实例共享同一个会话池，群发消息才能触达所有客户端。
-
-Q：为什么用原生 WebSocket 而不是 STOMP？
-
-> A：项目场景简单（来单提醒 + 状态推送），原生 `@ServerEndpoint` 足够，无需 STOMP 的订阅/主题模型。原生方案轻量，依赖少，`ServerEndpointExporter` 一个 Bean 即可启用。
-
----
 
 ## 九、AOP 操作日志模块
 
@@ -925,15 +731,11 @@ public ChatMemory chatMemory(ChatMemoryRepository chatMemoryRepository) {
 
 Q：为什么图片要转 Base64 再传给 Graph？
 
-> A：`CompiledGraph.invoke()` 的 state 是 `Map<String, Object>`，Graph 框架无法直接处理 `byte[]`（序列化和传递有问题）。在 `SeeController` 中先 `Base64.getEncoder().encodeToString(file.getBytes())`，再以字符串形式放入 state，`VisualFunction` 取出后构造 `data:image/jpeg;base64,...` 的 URI 交给 `Media` 解析。注释明确：「将文件转为 Base64 字符串再传入 state，避免 graph 框架无法处理 byte[]」。
+> A：`CompiledGraph.invoke()` 的 state 是 `Map<String, Object>`，Graph 框架无法直接处理 `byte[]`（序列化和传递有问题）。在 `SeeController` 中先 `Base64.getEncoder().encodeToString(file.getBytes())`，再以字符串形式放入 state，`VisualFunction` 取出后构造 `data:image/jpeg;base64,...` 的 URI 交给 `Media` 解析。注释明确：「将文件转为 Base64 字符串再传入 state，避免 graph 框架无法处理 byte[]。
 
 Q：为什么用 Graph 编排而不是直接串联两次 ChatClient 调用？
 
 > A：Graph（Spring AI Alibaba Graph）提供状态管理和节点编排能力。`StateGraph` 定义节点和边，`OverAllState` 在节点间传递数据（`visualResult` → `toolResult`）。这种方式易于扩展更多节点（如加「推荐排序」节点），且每个节点可独立测试。直接串联调用则逻辑耦合，难以扩展。`NodeLink` 还会打印 PlantUML 流程图便于可视化。
-
-Q：Function Calling 怎么触发？
-
-> A：`ToolConfiguration` 中构建 `toolClient` 时通过 `.defaultTools(setmealTool)` 注册工具。当 `ToolFunction` 调用 `toolClient.prompt().user(visualResult)` 时，模型根据用户输入自动判断是否调用 `@Tool` 方法。`SetmealTool` 中 7 个 `@Tool` 方法（queryById/queryByName/queryByCategoryId/queryByPriceRange/queryByStatus/queryByDescription/queryByMultiCondition）由模型自主选择调用。
 
 Q：模型用哪个？
 
@@ -941,93 +743,128 @@ Q：模型用哪个？
 
 ---
 
-## 十一、全局异常处理与自动填充模块
+
+## 十一、定时任务模块
 
 ### 需求阶段
 
-需求背景：项目需统一的异常响应格式和审计字段自动填充，避免每个 Controller 重复处理。
+需求背景：餐饮订单存在超时未支付自动取消、配送时间到点自动提醒等场景，需要定时任务周期性扫描数据库，处理超时订单和触发业务逻辑。
 
-- 业务异常、数据库异常、未知异常需统一封装为 `Result` 返回
-- 唯一约束冲突（如重复用户名）需给出友好提示
-- `create_time`/`update_time`/`create_user`/`update_user` 四个审计字段需自动填充，不能依赖手动 set
+- 订单状态流转需要定时检测（如待骑手取餐超时提醒）
+- 配送时间到达时需要自动推送通知
+- 定时任务应轻量执行，避免对数据库造成压力
 
 ### 策略流程图
 
 ```
-Controller 抛异常
-    ├─ BaseException（自定义业务异常）→ GlobalExceptionHandler → Result.error(msg)
-    ├─ SQLIntegrityConstraintViolationException（唯一约束冲突）→ 解析 Duplicate entry → 返回"用户名已存在"
-    └─ 其他异常 → 默认 500
-
-MyBatis-Plus insert/update
-    ├─ insertFill → 自动填充 createTime/updateTime/createUser/updateUser
-    └─ updateFill → 自动填充 updateTime/updateUser
+Spring Scheduled 定时触发 → @Scheduled(cron = "0 0 * * * ?") 每小时执行
+    → OrderTask.processTimeoutOrder()
+    → 查询 PENDING_RIDER_PICK 状态的订单
+    → 查询配送状态为 NOW 且已超过开始配送时间的订单
+    → log.info 输出提醒日志（实际项目中可扩展为 WebSocket 推送）
 ```
 
 ### 编码阶段
 
 ```java
-// GlobalExceptionHandler.java - 全局异常处理
-@RestControllerAdvice
-@Slf4j
-public class GlobalExceptionHandler {
-
-    // 自定义业务异常：返回 200 + Result.error（业务错误由前端提示文案决定）
-    @ExceptionHandler(BaseException.class)
-    public Result exception(BaseException e) {
-        return Result.error(e.getMessage() + ">>>>去联系管理员");
-    }
-
-    // 数据库唯一约束冲突（如重复用户名）：解析 Duplicate entry 给出友好提示
-    @ExceptionHandler(SQLIntegrityConstraintViolationException.class)
-    public Result handleSQLIntegrityConstraintViolationException(SQLIntegrityConstraintViolationException e) {
-        String message = e.getMessage();
-        if (message.contains("Duplicate entry")) {
-            String[] split = message.split("'");
-            String username = split[1];
-            return Result.error(username + ErrorConstant.USERNAME_EXIST);  // "xxx用户名已存在"
-        }
-        return Result.error(ErrorConstant.ERROR + e.getMessage());
-    }
-}
-```
-
-```java
-// AutoMetaObjectHandler.java - MyBatis-Plus 自动填充审计字段
+// OrderTask.java - 订单超时处理定时任务
+// @Scheduled cron 表达式：秒 分 时 日 月 周（每小时整点执行）
 @Component
-public class AutoMetaObjectHandler implements MetaObjectHandler {
+@Slf4j
+public class OrderTask {
 
-    private Long getUserId() {
-        return SecurityContextParam.getCurrentUserId();  // 从 SecurityContext 取当前用户
-    }
+    @Autowired
+    private OrderService orderService;
 
-    @Override
-    public void insertFill(MetaObject metaObject) {
-        // 新增时填充四个字段
-        this.setFieldValByName(FillHandleConstant.CREATE_TIME_HANDLER, LocalDateTime.now(), metaObject);
-        this.setFieldValByName(FillHandleConstant.UPDATE_TIME_HANDLER, LocalDateTime.now(), metaObject);
-        this.setFieldValByName(FillHandleConstant.CREATE_USER_HANDLER, getUserId(), metaObject);
-        this.setFieldValByName(FillHandleConstant.UPDATE_USER_HANDLER, getUserId(), metaObject);
-    }
+    @Scheduled(cron = "0 0 * * * ?")  // 每小时执行一次
+    public void processTimeoutOrder() {
+        // 1. 待骑手取餐状态的订单（PENDING_RIDER_PICK）
+        List<Order> pendingOrders = orderService.lambdaQuery()
+                .eq(Order::getStatus, OrderStatusEnum.PENDING_RIDER_PICK).list();
+        if (!pendingOrders.isEmpty()) {
+            log.info("有待处理订单：{}", pendingOrders);
+        }
 
-    @Override
-    public void updateFill(MetaObject metaObject) {
-        // 更新时只填充 updateTime 和 updateUser
-        this.setFieldValByName(FillHandleConstant.UPDATE_TIME_HANDLER, LocalDateTime.now(), metaObject);
-        this.setFieldValByName(FillHandleConstant.UPDATE_USER_HANDLER, getUserId(), metaObject);
+        // 2. 配送中且已超过开始配送时间的订单
+        List<Order> deliveringOrders = orderService.lambdaQuery()
+                .eq(Order::getDeliveryStatusEnum, DeliveryStatusEnum.NOW).list();
+        LocalDateTime now = LocalDateTime.now();
+        for (Order order : deliveringOrders) {
+            if (order.getStartDeliveryTime() != null && now.isAfter(order.getStartDeliveryTime())) {
+                log.info("id为{}订单需要开始派送了", order.getId());
+            }
+        }
     }
 }
 ```
 
 ### 问题修复阶段
 
-Q：为什么业务异常返回 200 而不是 4xx/5xx？
+Q：定时任务失败怎么办？
 
-> A：业务异常（如「用户名已存在」「密码错误」）是用户输入问题，不是服务器错误。返回 200 + `Result.error(msg)` 让前端统一通过 `Result.code` 判断业务成败，HTTP 状态码保持 200 避免触发前端的网络错误处理逻辑。注释明确：「返回 200 状态码 + Result.error（业务错误由前端提示文案决定）」。
+> A：当前实现中 `log.info` 仅输出日志，不会中断。生产环境可增加：1. try-catch 包裹异常并记录；2. 引入重试机制（Spring Retry）；3. 告警通知（邮件/钉钉）。
 
-Q：自动填充的 `createUser` 在未登录场景下怎么办？
+---
 
-> A：`AutoMetaObjectHandler.getUserId()` 从 `SecurityContextParam.getCurrentUserId()` 取值，未登录时返回 `null`。例如 `AdminEmployeeController.register()` 注册接口是放行接口（未登录），此时 `createUser` 会是 `null`。代码中 `employee.setCreateUser(0L)` 手动设置为 0，表示「系统/预置数据」。
+## 十二、店铺状态管理模块
+
+### 需求阶段
+
+需求背景：餐饮系统需要支持营业/打烊状态切换，管理端可手动设置店铺状态，用户端查询店铺状态决定是否允许下单。
+
+- 店铺状态存储在 Redis 中，读写快速
+- 管理端可随时切换状态（营业中/已打烊）
+- 用户端只读，根据状态显示下单入口或关闭提示
+
+### 策略流程图
+
+```
+管理端设置状态 → AdminShoppingController.updateStatus()
+    → POST /admin/shop/{status}
+    → 1=营业中, 0=已打烊
+    → 写入 Redis（key=SHOP_STATUS）
+用户端查询状态 → ShoppingController.read()
+    → GET /user/shop
+    → 读取 Redis 中的营业状态
+    → 返回给前端展示
+```
+
+### 编码阶段
+
+```java
+// AdminShoppingController.java - 管理端店铺状态控制
+@RestController
+@RequestMapping("/admin/shop")
+public class AdminShoppingController {
+
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
+
+    // 切换营业状态：1=营业中，0=已打烊
+    @PostMapping("{status}")
+    public Result updateStatus(@PathVariable Long status) {
+        String statusText = status == 1 ? "营业中" : "已打烊";
+        stringRedisTemplate.opsForValue().set(ShopConstant.SHOP_STATUS, statusText);
+        return Result.success(OperationEnum.CREATE + statusText);
+    }
+
+    // 查询当前营业状态
+    @GetMapping
+    public Result read() {
+        String status = stringRedisTemplate.opsForValue().get(ShopConstant.SHOP_STATUS);
+        if (status == null) {
+            status = "已打烊";  // 默认打烊状态
+        }
+        return Result.success(OperationEnum.READ + "--" + status);
+    }
+}
+```
+
+### 问题修复阶段
+
+Q：店铺状态为什么存 Redis 而不是 MySQL？
+
+> A：店铺状态是典型的高频读写场景（用户每次打开小程序都会查询），Redis 内存操作比 MySQL 磁盘操作快 100 倍以上。状态数据简单（仅一个字符串），存 Redis 足够，不需要持久化到 MySQL。重启后默认"已打烊"，管理员手动开启即可。
 
 ---
 
@@ -1073,32 +910,35 @@ Q：为什么用 Spring Cache 而不是手动操作 Redis？
 // 适合多步骤、有状态流转的 AI 工作流
 ```
 
-Q：为什么不用 LangChain4j 而用 Spring AI Alibaba Graph？
-
-> A：项目技术栈是 Spring Boot 3 + Spring AI，Graph 是 Spring AI Alibaba 生态原生组件，与 Spring AI 的 `ChatClient`/`@Tool` 无缝集成。Graph 的 `StateGraph` + `OverAllState` 模型适合「视觉识别 → 工具查询」这种多节点编排，且能自动生成 PlantUML 流程图便于可视化。
-
 ---
 
 # 依赖说明
 
-### 用户与员工认证功能依赖
+### admin功能依赖
 
 | 依赖 | 版本 | 功能支撑 |
 | :--- | :--- | :--- |
-| Spring Boot Starter Security | 3.3.8 | SecurityConfig 注册 BCryptPasswordEncoder；SecurityFilterChain 配置三层过滤器链；MultiLoginAuthenticationProvider 实现双端登录认证 |
-| Spring Boot Starter Data Redis | 3.3.8 | 存储 user Token（`restaurant:user:{id}`）和 emp Token（`restaurant:emp:{id}`）；滑动过期策略刷新 TTL |
-| JJWT API/Impl/Jackson | 0.12.6 | JwtUtil 生成/解析 JWT；claims 中携带 USER_ID/EMP_ID/TYPE 实现双端区分 |
-| Spring Boot Starter Web | 3.3.8 | UserController/AdminEmployeeController 提供 REST 接口（注册/登录/登出） |
+|      |      |          |
+|      |      |          |
+|      |      |          |
+|      |      |  |
 
-### 分类管理功能依赖
+### user功能依赖
 
 | 依赖 | 版本 | 功能支撑 |
 | :--- | :--- | :--- |
-| Spring Boot Starter Data Redis | 3.3.8 | **缓存策略**：@Cacheable(key="#type") 按 type 区分缓存；@CacheEvict(allEntries=true) 写后清除；分类目录30到2小时，本文使用RedisCacheManager 统一 TTL 30 分钟 |
-| MyBatis Plus | 3.5.9 | RestaurantCategoryMapper 继承 BaseMapper；LambdaQuery 实现按 type/name 分页查询 |
-| Hutool All | 5.8.26 | BeanUtil 进行 DTO 转 Entity（RestaurantCategoryDTO → RestaurantCategory） |
+|      |      |          |
+|      |      |          |
+|      |      |          |
 
-### 支付宝支付功能依赖
+admin功能依赖
+
+|      |      |
+| ---- | ---- |
+
+
+
+### 支付功能依赖
 
 | 依赖 | 版本 | 功能支撑 |
 | :--- | :--- | :--- |
@@ -1128,19 +968,6 @@ Q：为什么不用 LangChain4j 而用 Spring AI Alibaba Graph？
 | :--- | :--- | :--- |
 | Spring Boot Starter AOP | 3.3.8 | ServiceInterceptAspect 切面拦截 @Info/@OperationLogging 注解；@Around 环绕通知记录耗时和操作日志 |
 | Spring Boot Starter Security | 3.3.8 | OperationType 通过 SecurityContextParam.getCurrentUserId() 获取操作人 ID |
-
-### WebSocket 实时通信功能依赖
-
-| 依赖 | 版本 | 功能支撑 |
-| :--- | :--- | :--- |
-| Spring Boot Starter Web | 3.3.8 | WebSocketConfig 注册 ServerEndpointExporter；原生 Jakarta WebSocket 实现 @ServerEndpoint |
-
-### 全局异常与自动填充功能依赖
-
-| 依赖 | 版本 | 功能支撑 |
-| :--- | :--- | :--- |
-| Spring Boot Starter Web | 3.3.8 | @RestControllerAdvice 全局异常捕获；ExceptionHandler 处理 BaseException 和 SQLIntegrityConstraintViolationException |
-| MyBatis Plus | 3.5.9 | AutoMetaObjectHandler 实现 MetaObjectHandler；insertFill/updateFill 自动填充 createTime/updateTime/createUser/updateUser |
 
 ---
 

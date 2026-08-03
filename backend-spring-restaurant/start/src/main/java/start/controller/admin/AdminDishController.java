@@ -75,7 +75,7 @@ public class AdminDishController {
     @OperationLogging(operation = OperationEnum.DELETE)
     @DeleteMapping
     public Result delete(@RequestParam List<Long> ids) {
-        dishService.daleteCache(ids);
+        dishService.deleteCache(ids);
         return Result.success(OperationEnum.DELETE+"--"+ids);
     }
 }

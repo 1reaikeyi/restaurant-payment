@@ -76,7 +76,7 @@ public class UserController {
         map.put(JwtConstant.USER_NAME, user.getUsername());
         map.put(JwtConstant.TYPE, "user"); // type 必须与 UserRefreshRequestFilter 校验的 "user" 一致，否则过滤器不识别该 token 导致 401
         UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-                new LoginPrincipal(user.getId(), user.getUsername()),
+                new LoginPrincipal(user.getId(), user.getUsername(),"user"),
                 null,
                 Collections.singletonList(new SimpleGrantedAuthority(RoleConstant.ROLE_ADMIN))
         );

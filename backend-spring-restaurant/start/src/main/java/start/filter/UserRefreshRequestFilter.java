@@ -96,7 +96,7 @@ public class UserRefreshRequestFilter extends OncePerRequestFilter {
             }
 
             Authentication authentication = new UsernamePasswordAuthenticationToken(
-                    new LoginPrincipal(userId, username),
+                    new LoginPrincipal(userId, username,"user"),
                     token,
                     Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
             );

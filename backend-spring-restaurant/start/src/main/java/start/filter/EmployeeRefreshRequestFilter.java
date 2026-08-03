@@ -98,7 +98,7 @@ public class EmployeeRefreshRequestFilter extends OncePerRequestFilter {
             }
 
             Authentication authentication = new UsernamePasswordAuthenticationToken(
-                    new LoginPrincipal(empId, name),
+                    new LoginPrincipal(empId, name,"emp"),
                     token,
                     Collections.singletonList(new SimpleGrantedAuthority("ROLE_ADMIN"))
             );

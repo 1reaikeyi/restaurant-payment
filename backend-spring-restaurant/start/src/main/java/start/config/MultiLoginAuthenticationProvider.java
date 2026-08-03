@@ -42,7 +42,7 @@ public class MultiLoginAuthenticationProvider implements AuthenticationProvider 
                 throw new BadCredentialsException("用户名或密码错误");
             }
             return new UsernamePasswordAuthenticationToken(
-                    new LoginPrincipal(employee.getId(), employee.getUsername()),
+                    new LoginPrincipal(employee.getId(), employee.getUsername(),"emp"),
                     null,
                     Collections.singletonList(new SimpleGrantedAuthority("ROLE_ADMIN")));
         }
@@ -53,7 +53,7 @@ public class MultiLoginAuthenticationProvider implements AuthenticationProvider 
             throw new BadCredentialsException("用户名或密码错误");
         }
         return new UsernamePasswordAuthenticationToken(
-                new LoginPrincipal(user.getId(), user.getUsername()),
+                new LoginPrincipal(user.getId(), user.getUsername(),"user"),
                 null,
                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
     }

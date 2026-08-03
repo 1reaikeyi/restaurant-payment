@@ -12,6 +12,7 @@ import lombok.Data;
 public class LoginPrincipal {
     private Long id;
     private String username;
+    private String type;
 }
 /**
  *  LoginUserService.loadUserByUsername()  → new LoginUserDetails(user) 返回

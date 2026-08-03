@@ -86,7 +86,7 @@ public class AdminEmployeeController {
         map.put(JwtConstant.EMP_NAME, employee.getUsername());
         map.put(JwtConstant.TYPE, "emp"); // type 必须与 EmployeeRefreshRequestFilter 校验的 "emp" 一致，否则过滤器不识别该 token 导致 401
         UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-                new LoginPrincipal(employee.getId(), employee.getUsername()),
+                new LoginPrincipal(employee.getId(), employee.getUsername(),"emp"),
                 null,
                 Collections.singletonList(new SimpleGrantedAuthority(RoleConstant.ROLE_ADMIN))
         );

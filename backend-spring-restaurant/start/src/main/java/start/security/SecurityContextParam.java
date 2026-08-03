@@ -42,6 +42,16 @@ public class SecurityContextParam {
         LoginPrincipal principal = getLoginPrincipal();
         return principal != null ? principal.getUsername() : null;
     }
+    /**
+     * 获取当前登录用户角色
+     *
+     * @return 角色，例如"ROLE_USER"或"ROLE_ADMIN"前缀，如果未登录返回null
+     */
+    public static String getCurrentType() {
+        LoginPrincipal principal = getLoginPrincipal();
+        return principal != null ? principal.getType() : null;
+    }
+    
 
 
 }
