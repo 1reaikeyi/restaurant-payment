@@ -9,7 +9,7 @@ import java.io.Serializable;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class CategoryPageDTO implements Serializable {
+public class PlanPageDTO implements Serializable {
     //页码
     private int page;
 
@@ -17,5 +17,4 @@ public class CategoryPageDTO implements Serializable {
     private int pageSize;
 
     private String name;
-    private Long type;
 }

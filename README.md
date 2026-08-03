@@ -330,14 +330,7 @@ Q：用户端和管理端都能查分类，缓存会冲突吗？
 
 ### 编码阶段
 
-```java
-// DishServiceImpl.java - 基础 Service 架构
-// 继承 MyBatis-Plus 的 ServiceImpl，自动获得 save/saveBatch/getById/page 等能力
-@Service
-public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements DishService {
-    // 基础 CRUD 由 MyBatis-Plus 提供，业务逻辑可在此扩展
-}
-```
+
 
 ```java
 // 实体关系：Dish（菜品主表） 1:N DishDetail（菜品口味子表）
@@ -448,14 +441,6 @@ Q：异步通知本地怎么测？
 
 > A：支付宝只能向公网地址发 POST。本地 `localhost` 支付宝访问不到，需用内网穿透（ngrok、cpolar 等）把本机映射成公网 HTTPS，把 `notify-url` 配成公网地址 + `/pay/notify`。`application-dev.yml` 中默认是 `https://localhost:8080/pay/notify`，仅用于联调，生产必须改公网域名。
 
-Q：异步通知为什么要返回 "success" / "failure"？
-
-> A：支付宝若收不到 `success` 会按策略重试（8 次）。验签失败、金额不一致、订单不存在等异常情况必须返回 `failure`，让支付宝重试，避免丢失通知。订单已处理过的幂等场景返回 `success`，避免重复处理。注释中明确：「捕获异常返回 failure，让支付宝重试，避免丢失通知」。
-
-Q：退款为什么要单独查一次？
-
-> A：退款是异步处理，`AlipayTradeRefundRequest` 返回成功只代表支付宝受理了退款，不代表钱已到账。需调用 `AlipayTradeFastpayRefundQueryRequest` 查询退款状态，确认资金已退回买家账户，避免「受理成功但退款失败」的客诉。
-
 ---
 
 ## 八、文件上传与 Excel 导出模块
@@ -563,6 +548,11 @@ Q：文件下载中文文件名乱码
 业务方法标注 @Info(desc="描述")
     → ServiceInterceptAspect 拦截 → 记录目标类/方法/入参/耗时/返回值/异常
 ```
+
+| 人、操作结果，入参 | <img src="D:\a.github\restaurant-payment\说明\原型功能\日志记录.png" style="zoom:75%;" /> |
+| ------------------ | ------------------------------------------------------------ |
+
+
 
 ### 编码阶段
 
@@ -733,7 +723,7 @@ Q：为什么图片要转 Base64 再传给 Graph？
 
 > A：`CompiledGraph.invoke()` 的 state 是 `Map<String, Object>`，Graph 框架无法直接处理 `byte[]`（序列化和传递有问题）。在 `SeeController` 中先 `Base64.getEncoder().encodeToString(file.getBytes())`，再以字符串形式放入 state，`VisualFunction` 取出后构造 `data:image/jpeg;base64,...` 的 URI 交给 `Media` 解析。注释明确：「将文件转为 Base64 字符串再传入 state，避免 graph 框架无法处理 byte[]。
 
-Q：为什么用 Graph 编排而不是直接串联两次 ChatClient 调用？
+Q：为什么用 Graph 编排？
 
 > A：Graph（Spring AI Alibaba Graph）提供状态管理和节点编排能力。`StateGraph` 定义节点和边，`OverAllState` 在节点间传递数据（`visualResult` → `toolResult`）。这种方式易于扩展更多节点（如加「推荐排序」节点），且每个节点可独立测试。直接串联调用则逻辑耦合，难以扩展。`NodeLink` 还会打印 PlantUML 流程图便于可视化。
 

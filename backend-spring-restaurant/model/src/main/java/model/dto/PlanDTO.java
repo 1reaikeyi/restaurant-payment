@@ -5,42 +5,48 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.fasterxml.jackson.annotation.JsonFormat;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import model.entity.PlanDetail;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class RestaurantCategoryDTO implements Serializable {
-
+public class PlanDTO implements Serializable {
     /**
      * 主键
      */
     private Long id;
 
     /**
-     * 分类分组标识，用于区分不同的分类组别
-     * 例如：1,2,3,4
+     * 分类id
      */
-    private Long type;
+    private Long categoryId;
 
     /**
-     * 分类名称
+     * 套餐名称
      */
     private String name;
 
     /**
-     * 顺序优先级
+     * 套餐价格
      */
-    private Long sort;
+    private BigDecimal price;
 
     /**
-     * 分类状态：0禁用 1启用
+     * 状态：0停用 1启用
      */
     private Long status;
 
+    /**
+     * 描述信息
+     */
+    private String description;
+
+    /**
+     * 图片
+     */
+    private String image;
+
+    private List<PlanDetail> planDetails;
 }
