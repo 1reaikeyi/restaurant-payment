@@ -68,9 +68,8 @@ public class AdminDishController {
     @OperationLogging(operation = OperationEnum.UPDATE)
     @PutMapping
     public Result update(@RequestBody DishDTO dishDTO) {
-        Dish dish = BeanUtil.toBean(dishDTO, Dish.class);
-        dishService.updateCache(dish);
-        return Result.success(OperationEnum.UPDATE+"--"+dish.getId());
+        dishService.updateCache(dishDTO);
+        return Result.success(OperationEnum.UPDATE+"--"+dishDTO.getId());
     }
 
     @OperationLogging(operation = OperationEnum.DELETE)

@@ -1,6 +1,7 @@
 package service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import model.dto.DishDTO;
 import model.entity.Dish;
 
 import java.util.List;
@@ -13,7 +14,7 @@ public interface DishService extends IService<Dish> {
 
     Dish readCache(Long id);
 
-    Boolean updateCache(Dish dish);
+    void updateCache(DishDTO dishDTO);
 
-    Boolean deleteCache(List<Long> ids);
+    void deleteCache(List<Long> ids);
 }

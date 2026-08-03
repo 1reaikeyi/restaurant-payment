@@ -11,6 +11,8 @@ import model.dto.PlanDTO;
 import model.dto.DishPageDTO;
 import model.entity.Dish;
 import model.entity.DishDetail;
+import model.entity.Plan;
+import model.entity.PlanDetail;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -31,40 +33,39 @@ public class AdminPlanController {
     @Transactional(rollbackFor = Exception.class)
     @PostMapping
     public Result create(@RequestBody PlanDTO planDTO) {
-        Dish dish = BeanUtil.toBean(planDTO, Dish.class);
-        planService.save(dish);
-        List<DishDetail> dishDetailList = planDTO.getDishDetails().stream()
-                .map(dishDetail -> BeanUtil.toBean(dishDetail, DishDetail.class))
+        Plan plan = BeanUtil.toBean(planDTO, Plan.class);
+        planService.save(plan);
+        List<PlanDetail> planDetailList = planDTO.getPlanDetails().stream()
+                .map(planDetail -> BeanUtil.toBean(planDetail, PlanDetail.class))
                 .toList();
-        planDetailService.saveBatch(dishDetailList);
-        return Result.success(OperationEnum.CREATE+"--"+dish.getId());
+        planDetailService.saveBatch(planDetailList);
+        return Result.success(OperationEnum.CREATE+"--"+plan.getId());
     }
 
     @OperationLogging(operation = OperationEnum.READ)
     @GetMapping("/all")
     public Result readAll(DishPageDTO dishPageDTO) {
-        LambdaQueryWrapper<Dish> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Dish::getStatus, StatusConstant.ENABLE)
-                .like(dishPageDTO.getName() != null, Dish::getName, dishPageDTO.getName());
-        IPage<Dish> page = new Page<>(dishPageDTO.getPage(), dishPageDTO.getPageSize());
-        IPage<Dish> dishIPage = planService.page(page, queryWrapper);
-        return Result.success(dishIPage);
+        LambdaQueryWrapper<Plan> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Plan::getStatus, StatusConstant.ENABLE)
+                .like(dishPageDTO.getName() != null, Plan::getName, dishPageDTO.getName());
+        IPage<Plan> page = new Page<>(dishPageDTO.getPage(), dishPageDTO.getPageSize());
+        IPage<Plan> planPage = planService.page(page, queryWrapper);
+        return Result.success(planPage);
     }
 
     @OperationLogging(operation = OperationEnum.READ)
     @GetMapping
     public Result readById(@RequestParam Long id) {
-        Dish dish = planService.readCache(id);
-        List<DishDetail> dishDetailList = planDetailService.lambdaQuery().eq(DishDetail::getDishId, dish.getId()).list();
-        return Result.success(dish+"::"+dishDetailList);
+        Plan plan = planService.readCache(id);
+        List<PlanDetail> planDetailList = planDetailService.lambdaQuery().eq(PlanDetail::getPlanId, plan.getId()).list();
+        return Result.success(plan+"::"+planDetailList);
     }
 
     @OperationLogging(operation = OperationEnum.UPDATE)
     @PutMapping
     public Result update(@RequestBody PlanDTO planDTO) {
-        Dish dish = BeanUtil.toBean(planDTO, Dish.class);
-        planService.updateCache(dish);
-        return Result.success(OperationEnum.UPDATE+"--"+dish.getId());
+        planService.updateCache(planDTO);
+        return Result.success(OperationEnum.UPDATE+"--"+planDTO.getId());
     }
 
     @OperationLogging(operation = OperationEnum.DELETE)

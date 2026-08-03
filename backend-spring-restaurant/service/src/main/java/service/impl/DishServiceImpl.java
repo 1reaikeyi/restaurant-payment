@@ -2,10 +2,13 @@ package service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.json.JSONUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import common.constant.RedisPrefixConstant;
 import lombok.extern.slf4j.Slf4j;
 import mapper.DishMapper;
+import model.dto.DishDTO;
+import model.entity.DishDetail;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +35,8 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
     private StringRedisTemplate stringRedisTemplate;
     @Autowired
     private RedissonClient redissonClient;
+    @Autowired
+    private DishDetailService dishDetailService;
 
     private static final Random RANDOM = new Random();
     private static final long RENEW_THRESHOLD = 10L;
@@ -160,18 +165,31 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
 
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public Boolean updateCache(Dish dish) {
-        boolean success = super.updateById(dish);
+    public void updateCache(DishDTO dishDTO) {
+        // 1.更新菜品基本信息（update_time/update_user 由填充器自动写入）
+        Dish dish = BeanUtil.toBean(dishDTO, Dish.class);
+        super.updateById(dish);
+        // 2.删除缓存，保证下次读取时重建
         stringRedisTemplate.delete(RedisPrefixConstant.DISH_PREFIX + dish.getId());
-        return success;
+        // 3.重建菜品口味：先删除旧口味，再插入新口味
+        dishDetailService.remove(new LambdaQueryWrapper<DishDetail>()
+                .eq(DishDetail::getDishId, dish.getId()));
+        List<DishDetail> dishDetailList = dishDTO.getDishDetails();
+        if (dishDetailList != null) {
+            dishDetailList.forEach(detail -> detail.setDishId(dish.getId()));
+            dishDetailService.saveBatch(dishDetailList);
+        }
     }
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public Boolean deleteCache(List<Long> ids) {
-        boolean success = super.removeByIds(ids);
+    public void deleteCache(List<Long> ids) {
+        // 1.删除菜品及其口味（dish_detail 通过 dish_id 关联）
+        super.removeByIds(ids);
+        dishDetailService.remove(new LambdaQueryWrapper<DishDetail>()
+                .in(DishDetail::getDishId, ids));
+        // 2.删除缓存
         for (Long id : ids) {
             stringRedisTemplate.delete(RedisPrefixConstant.DISH_PREFIX + id);
         }
-        return success;
     }
 }
