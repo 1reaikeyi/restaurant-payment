@@ -4,8 +4,6 @@ restaurant-payment：B2C经营模式，一个餐馆卖家，多个买家。餐�
 
 一个由Spring Boot 3 + Vue 3 的前后端分离架构，中间件使用redis，主业务为餐饮订单和支付的全栈系统，同时Spring AI（这里使用spring-ai-starter-model-openai） 作为单独服务接入，通过菜品识别对应菜单。
 
-------
-
 # 后端说明
 
 **订单状态流转**：
@@ -87,7 +85,7 @@ restaurant-payment/
 │
 └── 说明/                                 # 项目说明文档
     ├── 原型功能/                         # 前端原型截图
-    ├── 第三方授权登录/                    # 支付宝，qq,微信
+    ├── 支付宝，qq授权登录/               # 支付宝/QQ 授权登录截图
     ├── 支付功能结果/                      # 支付流程截图
     ├── employee的api文档.md              # 管理端
     └── user的api文档.md                  # 用户端
@@ -163,7 +161,7 @@ public Authentication authenticate(Authentication authentication) throws Authent
             throw new BadCredentialsException("用户名或密码错误");
         }
         return new UsernamePasswordAuthenticationToken(
-                new LoginPrincipal(employee.getId(), employee.getUsername()),
+                new LoginPrincipal(employee.getId(), employee.getUsername(), "emp"),
                 null,
                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_ADMIN")));
     }
@@ -173,36 +171,46 @@ public Authentication authenticate(Authentication authentication) throws Authent
         throw new BadCredentialsException("用户名或密码错误");
     }
     return new UsernamePasswordAuthenticationToken(
-            new LoginPrincipal(user.getId(), user.getUsername()),
+            new LoginPrincipal(user.getId(), user.getUsername(), "user"),
             null,
             Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
 }
 ```
 
 ```java
-// UserRefreshRequestFilter.java - user Token 校验与滑动过期（emp Token 直接放行）
-// 关键：通过 claims 中的 TYPE 字段区分 token 归属，互不干扰
-Map<String, Object> claims = JwtUtil.parseJWT(jwtProperties.getUserSecretKey(), token);
-String type = claims.get(JwtConstant.TYPE) != null
-        ? claims.get(JwtConstant.TYPE).toString() : "user";
-if (!"user".equals(type)) {
-    // 不是 user 的 token（emp），交给 EmployeeRefreshRequestFilter 处理
-    filterChain.doFilter(request, response);
-    return;
+// UserRefreshRequestFilter.java - user Token 校验与滑动过期（emp Token 直接放行给下一个过滤器）
+// 核心流程：提取 Bearer Token → 解析 JWT → TYPE≠user 放行 → Redis 校验一致性
+//          → 设置 SecurityContext(ROLE_USER) → 滑动过期刷新
+@Override
+protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) {
+    String token = extractToken(request);                 // 从 "Authorization: Bearer xx" 提取
+    if (token == null) { filterChain.doFilter(request, response); return; }   // 无 Token 交给兜底过滤器
+
+    Map<String, Object> claims = JwtUtil.parseJWT(jwtProperties.getUserSecretKey(), token);
+    String type = claims.get(JwtConstant.TYPE) != null
+            ? claims.get(JwtConstant.TYPE).toString() : "user";
+    if (!"user".equals(type)) {                           // 非 user Token（emp）→ 交给 EmployeeRefreshRequestFilter
+        filterChain.doFilter(request, response);
+        return;
+    }
+    Long userId = Long.parseLong(claims.get(JwtConstant.USER_ID).toString());
+
+    // Redis 校验：防止 Token 被盗用后多端登录
+    String standardToken = stringRedisTemplate.opsForValue()
+            .get(RedisPrefixConstant.USER_AUTHHEADER_PREFIX + userId);
+    if (!token.equals(standardToken)) {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        return;
+    }
+    // 设置 SecurityContext（ROLE_USER）
+    SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+            new LoginPrincipal(userId, "", "user"), token,
+            Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))));
+    // 滑动过期：每次请求刷新 Redis 中 Token 有效期
+    stringRedisTemplate.expire(RedisPrefixConstant.USER_AUTHHEADER_PREFIX + userId,
+            jwtProperties.getUserTtl(), TimeUnit.SECONDS);
+    // 省略：ExpiredJwtException / JwtException 异常统一捕获并返回 401
 }
-Long userId = Long.parseLong(claims.get(JwtConstant.USER_ID).toString());
-// Redis 校验：防止 Token 被盗用后多端登录
-String standardToken = stringRedisTemplate.opsForValue()
-        .get(RedisPrefixConstant.USER_AUTHHEADER_PREFIX + userId);
-if (!token.equals(standardToken)) {
-    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-    return;
-}
-// 设置 SecurityContext（ROLE_USER）
-SecurityContextHolder.getContext().setAuthentication(authentication);
-// 滑动过期：每次请求刷新 Redis 中 Token 有效期
-stringRedisTemplate.expire(RedisPrefixConstant.USER_AUTHHEADER_PREFIX + userId,
-        jwtProperties.getUserTtl(), TimeUnit.SECONDS);
 ```
 
 ### 问题修复阶段
@@ -210,10 +218,6 @@ stringRedisTemplate.expire(RedisPrefixConstant.USER_AUTHHEADER_PREFIX + userId,
 Q：双端登录认证时，如何避免两个 RefreshRequestFilter 都尝试解析同一个 Token 导致重复验证？
 
 > **过滤器短路执行机制**：关键是利用 `filterChain.doFilter()` 的短路特性。在 `EmployeeRefreshRequestFilter` 中，先解析 Token 的 TYPE 字段：如果是 `emp` 类型，执行完整验证流程并设置 SecurityContext；如果不是，直接调用 `filterChain.doFilter()` 放行给下一个过滤器。`UserRefreshRequestFilter` 同样逻辑处理 `user` 类型。只有当两个过滤器都处理完，`InformationRequestFilter` 兜底检查 SecurityContext 是否为空。这种设计的关键是**每个过滤器只处理自己关心的 Token 类型，不做拒绝判断**，避免了 if-else 嵌套和 Token 类型转换错误。
-
-Q：BCryptPasswordEncoder.matches() 方法内部是如何处理盐值的？为什么不需要单独存储 salt 字段？
-
-> **盐值内嵌设计**：BCrypt 的密文格式为 `$2a$10$<22位salt><31位hash>`，盐值直接嵌在密文中间。`matches()` 方法解析密文时，按 `$` 分割后自动提取出盐值（第 3 段前 22 位），然后用提取出的盐值对传入的明文密码进行哈希运算，最后比较结果是否匹配。这种设计的好处是**盐值与密文绑定存储**，不需要额外的盐字段，验证时自动提取。代价是每个用户的盐值不可变——如果想更换盐值，必须重新哈希整个密码，这也是为什么登录接口中密码验证后如果成功就直接放行，不会重新生成新盐值的原因。
 
 Q：滑动过期策略下，长时间不活跃的用户会被强制下线。系统如何检测并处理已下线用户的后续请求？
 
@@ -245,65 +249,85 @@ Q：滑动过期策略下，长时间不活跃的用户会被强制下线。系�
 ### 编码阶段
 
 ```java
-// AdminCategoryController.java - Spring Cache 声明式缓存
+// AdminCategoryController.java - Spring Cache 声明式缓存 + @OperationLogging 审计
 // @CacheConfig 在类级别统一声明 cacheNames，方法级只用 key
 @RestController
 @RequestMapping("/admin/category")
 @CacheConfig(cacheNames = "restaurantCategory:type")
 public class AdminCategoryController {
 
+    @OperationLogging(operation = OperationEnum.CREATE)
+    @PostMapping
+    public Result create(@RequestBody RestaurantCategoryDTO dto) { ... }
+
+    // 分页查询：type + status(启用) + name 模糊筛选
+    @OperationLogging(operation = OperationEnum.READ)
+    @GetMapping("/all")
+    public Result readAll(CategoryPageDTO dto) { ... }
+
     // 按 type 查询：结果缓存，key 用 SpEL 引用方法参数 #type
-    @Cacheable(key = "#type", unless = "#result == null")
+    @OperationLogging(operation = OperationEnum.READ)
+    @Cacheable(key = "#type")
     @GetMapping
     public Result readByType(@RequestParam("type") Long type) {
-        List<RestaurantCategory> list = restaurantCategoryService.lambdaQuery()
-                .eq(RestaurantCategory::getType, type).list();
-        return Result.success(list);
+        return Result.success(restaurantCategoryService.lambdaQuery()
+                .eq(RestaurantCategory::getType, type).list());
     }
 
-    // 更新：写库后清空该 cacheName 下所有缓存，保证一致性
+    // 更新/删除：写库后 @CacheEvict(allEntries=true) 清空整个命名空间，保证一致性
+    @OperationLogging(operation = OperationEnum.UPDATE)
     @CacheEvict(allEntries = true)
     @PutMapping
-    public Result update(@RequestBody RestaurantCategoryDTO dto) {
-        RestaurantCategory entity = BeanUtil.toBean(dto, RestaurantCategory.class);
-        restaurantCategoryService.updateById(entity);
-        return Result.success(OperationEnum.UPDATE + "--" + entity.getId());
-    }
+    public Result update(@RequestBody RestaurantCategoryDTO dto) { ... }
 
-    // 删除：同样清空所有缓存（因为可能影响按 type 查询的列表）
+    @OperationLogging(operation = OperationEnum.DELETE)
     @CacheEvict(allEntries = true)
     @DeleteMapping
-    public Result delete(@RequestParam List<Long> ids) {
-        restaurantCategoryService.removeByIds(ids);
-        return Result.success(OperationEnum.DELETE + "--" + ids);
-    }
+    public Result delete(@RequestParam List<Long> ids) { ... }
 }
 ```
 
 ```java
-// RedisConfig.java - 缓存管理器配置
-// 统一 TTL 30 分钟，Key 用 String 序列化，Value 用 Jackson JSON 序列化
-@Bean
-public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory, ObjectMapper objectMapper) {
-    RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
-            .serializeKeysWith(RedisSerializationContext.SerializationPair
-                    .fromSerializer(new StringRedisSerializer()))
-            .serializeValuesWith(RedisSerializationContext.SerializationPair
-                    .fromSerializer(new GenericJackson2JsonRedisSerializer(redisMapper)))
-            .entryTtl(Duration.ofMinutes(30));  // 默认缓存 30 分钟
-    return RedisCacheManager.builder(connectionFactory).cacheDefaults(defaultConfig).build();
+// RedisConfig.java - Redis 缓存管理器（@EnableCaching + 自定义 ObjectMapper）
+// 关键：克隆 Web 层 ObjectMapper，激活默认类型（写入 @class），配合
+//      GenericJackson2JsonRedisSerializer，才能在反序列化时还原对象的实际类型
+@Configuration
+@EnableCaching
+public class RedisConfig {
+
+    private ObjectMapper buildRedisObjectMapper(ObjectMapper webMapper) {
+        ObjectMapper redisMapper = webMapper.copy();           // 与 Web 层完全隔离
+        PolymorphicTypeValidator typeValidator = BasicPolymorphicTypeValidator.builder()
+                .allowIfSubType("pojo.").allowIfSubType("common.")
+                .allowIfSubType("model.").allowIfSubType("java.util.")
+                .allowIfSubType("java.lang.").build();
+        redisMapper.activateDefaultTyping(typeValidator,
+                ObjectMapper.DefaultTyping.NON_FINAL, JsonTypeInfo.As.PROPERTY);  // 写入 @class
+        return redisMapper;
+    }
+
+    @Bean
+    public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory, ObjectMapper objectMapper) {
+        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
+                .serializeKeysWith(RedisSerializationContext.SerializationPair
+                        .fromSerializer(new StringRedisSerializer()))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair
+                        .fromSerializer(new GenericJackson2JsonRedisSerializer(buildRedisObjectMapper(objectMapper))))
+                .entryTtl(Duration.ofMinutes(30));   // 默认缓存 30 分钟
+        return RedisCacheManager.builder(connectionFactory).cacheDefaults(defaultConfig).build();
+    }
 }
 ```
 
 ### 问题修复阶段
 
-Q：@CacheEvict(allEntries=true) 底层是如何实现批量删除的？它和逐 key 删除相比有哪些性能差异？
+Q：分类更新/删除为什么用 @CacheEvict(allEntries=true) 而不是逐个删 key？
 
-> **Spring Cache 的清除策略**：`allEntries=true` 底层调用 `RedisCacheManager.getCache()` 获取对应的 Cache 实例，然后调用 `Cache.clear()` 方法。对于 Redis 实现，`clear()` 内部执行的是 `SCAN` + `DEL` 命令（Spring Cache 3.x 版本），而不是 `KEYS` + `DEL`。逐 key 删除的问题是：你需要知道确切的缓存 Key 格式才能定位，而 `allEntries=true` 直接清空整个命名空间（`restaurantCategory:type` 下的所有 Key）。性能上，`allEntries=true` 对命名空间内 Key 数量敏感——如果 Key 数量少（如分类只有几个 type），几乎无开销；如果 Key 数量巨大（如按用户 ID 缓存），则可能阻塞 Redis。
+> 分类按 type 分组查询（`restaurantCategory:type::{type}`），改动任意一个分类都可能影响多个 type 下的分类列表，无法精确枚举受影响的 key，直接清空整个命名空间最保险。底层 `RedisCache.clear()` 用 `SCAN` 遍历删除该 cacheName 下所有 key（而非阻塞的 `KEYS`）；分类 key 只有几个 type，开销可忽略。
 
-Q：Spring Cache 的 @Cacheable 注解中 unless 表达式 `unless = "#result == null"` 的作用是什么？
+Q：菜品/套餐用"逻辑过期 + 分布式锁"，为什么分类直接用 @Cacheable 声明式缓存？
 
-> **防止空值缓存**：Spring Cache 默认行为是无论查询结果是否为 null，都会将结果缓存。这意味着如果某个 ID 查询不到数据，会在 Redis 中缓存一个 null 值，下次查询直接返回 null（称为"缓存穿透保护"）。但分类查询用 `unless = "#result == null"` 的意思是**只有当结果不为 null 时才缓存**。这是因为分类数据中，null 值通常意味着"该分类不存在"，而这个信息本身不需要缓存——用户反复查询一个不存在的分类，每次都应该返回"不存在"而不是被 null 缓存短路。这在数据字典类场景下很有用，但在需要防穿透的场景（如热点商品 ID 查询），应该去掉 unless 让 null 也缓存。
+> 分类是数据量极小、读多写少的数据字典（type=1 菜品 / type=2 套餐各几个），命中率接近 100%，用 Spring Cache 声明式注解成本最低；即使缓存偶发失效也只是一次查库，无性能压力。菜品/套餐是热点商品，需要精细控制**防穿透/击穿/雪崩**，所以手写 Redis + Redisson。两种策略体现了缓存方案按"数据热度"分级取舍。
 
 ---
 
@@ -356,17 +380,18 @@ Q：Spring Cache 的 @Cacheable 注解中 unless 表达式 `unless = "#result ==
 
 ```java
 // AdminDishController.java - 管理端菜品 CRUD
-// 核心设计：主表+明细表在同一事务中保存，缓存主动删除保证一致性
+// 核心设计：主表+明细表同一事务保存；写操作同步清缓存（Cache Aside）保证一致性
 @RestController
 @RequestMapping("/admin/dish")
 public class AdminDishController {
 
-    // 新增菜品：主表+明细表事务保存
-    @PostMapping
+    @OperationLogging(operation = OperationEnum.CREATE)
     @Transactional(rollbackFor = Exception.class)
+    @PostMapping
     public Result create(@RequestBody DishDTO dishDTO) {
         Dish dish = BeanUtil.toBean(dishDTO, Dish.class);
         dishService.save(dish);
+        dishService.deleteCacheById(dish.getId());   // 清除可能残留的空值缓存（防穿透）
         // 批量保存口味列表（saveBatch 比循环 insert 性能高数十倍）
         List<DishDetail> dishDetailList = dishDTO.getDishDetails().stream()
                 .map(dishDetail -> BeanUtil.toBean(dishDetail, DishDetail.class))
@@ -376,127 +401,134 @@ public class AdminDishController {
     }
 
     // 分页查询：支持状态筛选+名称模糊搜索
+    @OperationLogging(operation = OperationEnum.READ)
     @GetMapping("/all")
-    public Result readAll(DishPageDTO dishPageDTO) {
-        LambdaQueryWrapper<Dish> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Dish::getStatus, StatusConstant.ENABLE)
-                .like(dishPageDTO.getName() != null, Dish::getName, dishPageDTO.getName());
-        IPage<Dish> page = new Page<>(dishPageDTO.getPage(), dishPageDTO.getPageSize());
-        IPage<Dish> dishIPage = dishService.page(page, queryWrapper);
-        return Result.success(dishIPage);
-    }
+    public Result readAll(DishPageDTO dishPageDTO) { ... }
 
-    // 详情查询：缓存优先，逻辑过期+异步刷新
+    // 详情查询：缓存优先（readCache），空值返回"菜品不存在"
+    @OperationLogging(operation = OperationEnum.READ)
     @GetMapping
     public Result readById(@RequestParam Long id) {
-        Dish dish = dishService.readCache(id);  // 带缓存的读取
-        List<DishDetail> dishDetailList = dishDetailService.lambdaQuery()
-                .eq(DishDetail::getDishId, dish.getId()).list();
-        return Result.success(dish + "::" + dishDetailList);
+        Dish dish = dishService.readCache(id);   // 带缓存的读取（逻辑过期+异步刷新）
+        if (dish == null) return Result.error("菜品不存在");
+        return Result.success(dish + "::" + dishDetailService.lambdaQuery()
+                .eq(DishDetail::getDishId, dish.getId()).list());
+    }
+
+    @OperationLogging(operation = OperationEnum.UPDATE)
+    @PutMapping
+    public Result update(@RequestBody DishDTO dishDTO) {
+        dishService.updateCache(dishDTO);
+        return Result.success(OperationEnum.UPDATE + "--" + dishDTO.getId());
+    }
+
+    @OperationLogging(operation = OperationEnum.DELETE)
+    @DeleteMapping
+    public Result delete(@RequestParam List<Long> ids) {
+        dishService.deleteCache(ids);
+        return Result.success(OperationEnum.DELETE + "--" + ids);
     }
 }
 ```
 
 ```java
-// DishServiceImpl.java - 核心缓存策略：逻辑过期 + 异步刷新 + 分布式锁
+// DishServiceImpl.java - 菜品三级缓存策略（防穿透 / 防击穿 / 防雪崩）
 // RedisData 结构：{ data: 实际数据, expireTime: 逻辑过期时间 }
-// Redis 物理 TTL 设为 24 小时（FINAL_TTL），逻辑过期设为 30 秒（PLUS_TTL）
+// 常量：PLUS_TTL=30s（逻辑过期）、FINAL_TTL=86400s（物理 TTL）、RENEW_TTL=10s（续期阈值）
+// 防雪崩：物理 TTL 24h 远大于逻辑过期，写缓存时逻辑过期时间再加随机 ±5s
 @Service
 public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements DishService {
 
-    private static final long RENEW_THRESHOLD = 10L;  // 续期阈值（秒）
-    private static final long PLUS_TTL = 30L;          // 逻辑过期时间
-    private static final long FINAL_TTL = 86400L;       // Redis 物理 TTL（24小时）
-
-    // 核心查询方法：三级缓存策略
     public Dish readCache(Long id) {
-        String value = stringRedisTemplate.opsForValue().get(KEY + id);
-
-        // 1. 缓存不存在 → 查库并设置缓存
-        if (value == null) {
-            return getDish(id);
-        }
+        String value = stringRedisTemplate.opsForValue().get(DISH_PREFIX + id);
+        if (value == null) return getDishLock(id);        // ① 无缓存：加锁查库重建
 
         RedisData redisData = JSONUtil.toBean(value, RedisData.class);
-
-        // 2. 缓存为空值（防穿透）→ 查库
-        if (redisData.getData() == null) {
-            return getDish(id);
-        }
-
-        // 3. 缓存存在且逻辑未过期 → 检查是否临近过期，异步续期
+        // ② 逻辑未过期：直接返回；空值缓存返回 null（防穿透，不查库）；临近过期(<10s)同步续期
         if (redisData.getExpireTime().isAfter(LocalDateTime.now())) {
+            if (redisData.getData() == null) return null;   // 空值缓存，直接返回，不查库
             long remainSec = Duration.between(LocalDateTime.now(), redisData.getExpireTime()).getSeconds();
-            if (remainSec < RENEW_THRESHOLD) {
-                // 临近过期（<10秒），同步续期 expireTime，防止即将过期时大量请求触发刷新
-                redisData.setExpireTime(LocalDateTime.now().plusSeconds(PLUS_TTL));
-                stringRedisTemplate.opsForValue().set(KEY + id, JSONUtil.toJsonStr(redisData),
-                        FINAL_TTL, TimeUnit.SECONDS);
-            }
+            if (remainSec < RENEW_TTL) redisData.setExpireTime(LocalDateTime.now().plusSeconds(PLUS_TTL));  // 续期
             return BeanUtil.toBean(redisData.getData(), Dish.class);
         }
+        // ③ 逻辑过期：返回旧数据，异步线程池重建缓存（防击穿，不阻塞请求线程）
+        dishCache(id);
+        return redisData.getData() == null ? null : BeanUtil.toBean(redisData.getData(), Dish.class);
+    }
 
-        // 4. 缓存逻辑过期 → 异步获取分布式锁刷新，同步返回旧数据
-        Dish dish = getDishCache(id);  // 异步刷新（非阻塞）
-        if (dish == null) {
-            // 异步刷新可能尚未完成，兜底返回旧数据
-            return BeanUtil.toBean(redisData.getData(), Dish.class);
-        }
+    // 缓存穿透 + 防雪崩：查不到也缓存空值（data=null）；逻辑过期时间加入随机 ±5s
+    private Dish getDish(Long id) {
+        Dish dish = super.getById(id);
+        RedisData redisData = new RedisData();
+        redisData.setData(dish);                        // dish==null 时即为空值缓存
+        redisData.setExpireTime(LocalDateTime.now().plusSeconds(PLUS_TTL + RANDOM.nextInt(-5, 5)));
+        stringRedisTemplate.opsForValue().set(DISH_PREFIX + id, JSONUtil.toJsonStr(redisData),
+                FINAL_TTL, TimeUnit.SECONDS);
         return dish;
     }
 
-    // 异步刷新：线程池 + 分布式锁 + 双重检查
-    private Dish getDishCache(Long id) {
-        DISH_EXECUTOR.submit(() -> {
-            RLock redissonLock = redissonClient.getLock("dish:lock:" + id);
-            try {
-                if (!redissonLock.tryLock(0, TimeUnit.SECONDS)) {
-                    return;  // 获取锁失败，说明其他线程正在刷新
-                }
-                // 双重检查：防止多个异步任务同时进入后重复刷新
-                String latestVal = stringRedisTemplate.opsForValue().get(KEY + id);
-                RedisData latestData = JSONUtil.toBean(latestVal, RedisData.class);
-                if (latestData != null && latestData.getData() != null
-                        && latestData.getExpireTime().isAfter(LocalDateTime.now())) {
-                    return;  // 已有其他线程刷新过，跳过
-                }
-                getDish(id);  // 刷新缓存
-            } finally {
-                if (redissonLock.isHeldByCurrentThread()) {
-                    redissonLock.unlock();
+    // 防击穿（无缓存时）：Redisson 分布式锁 + 双重检查，保证并发下只有一线程查库
+    private Dish getDishLock(Long id) {
+        RLock lock = redissonClient.getLock("dish:lock:" + id);
+        if (!lock.tryLock(10, TimeUnit.SECONDS)) return null;
+        try {
+            String latest = stringRedisTemplate.opsForValue().get(DISH_PREFIX + id);
+            if (latest != null) {                        // 双重检查：等锁期间其他线程可能已重建
+                RedisData cached = JSONUtil.toBean(latest, RedisData.class);
+                if (cached.getExpireTime().isAfter(LocalDateTime.now())) {
+                    return cached.getData() == null ? null : BeanUtil.toBean(cached.getData(), Dish.class);
                 }
             }
-        });
-        return null;  // 立即返回，不等待刷新完成
+            return getDish(id);                          // 真正查库重建
+        } finally {
+            if (lock.isHeldByCurrentThread()) lock.unlock();
+        }
     }
 
-    // 写操作：更新数据库后主动删除缓存
+    // 逻辑过期后的异步刷新：有界线程池（核心5/队列100/CallerRunsPolicy）+ 锁 + 双重检查
+    private void dishCache(Long id) {
+        DISH_EXECUTOR.submit(() -> {
+            RLock redissonLock = redissonClient.getLock("dish:lock:" + id);
+            if (!redissonLock.tryLock(10, TimeUnit.SECONDS)) return;
+            try {
+                // 双重检查：等锁后缓存已被其他线程刷新则跳过 ...（省略）
+                getDish(id);
+            } finally {
+                if (redissonLock.isHeldByCurrentThread()) redissonLock.unlock();
+            }
+        });
+    }
+
+    // 写操作：更新数据库 + 重建口味（先删后插），事务提交后再删缓存（Cache Aside）
     @Transactional(rollbackFor = Exception.class)
     public void updateCache(DishDTO dishDTO) {
-        Dish dish = BeanUtil.toBean(dishDTO, Dish.class);
-        super.updateById(dish);                        // 1. 更新数据库
-        stringRedisTemplate.delete(KEY + dish.getId()); // 2. 删除缓存（Cache Aside 模式）
-        // 3. 重建口味：先删后插
+        super.updateById(BeanUtil.toBean(dishDTO, Dish.class));
         dishDetailService.remove(new LambdaQueryWrapper<DishDetail>()
-                .eq(DishDetail::getDishId, dish.getId()));
+                .eq(DishDetail::getDishId, dishDTO.getId()));
         dishDetailService.saveBatch(dishDTO.getDishDetails());
+        // 事务提交后再删缓存，避免并发读在事务提交前读到旧数据
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override public void afterCommit() {
+                stringRedisTemplate.delete(DISH_PREFIX + dishDTO.getId());
+            }
+        });
     }
 }
 ```
 
 ### 问题修复阶段
 
-Q：缓存逻辑过期方案中，RedisData 结构的物理 TTL 设为 24 小时但逻辑过期设为 30 秒，这种"双过期时间"的设计有什么潜在风险？
+Q：缓存刷新用 `synchronized` 或 `ReentrantLock` 替代 Redisson 分布式锁可行吗？
 
-> **内存占用与一致性风险**：双过期时间的设计初衷是"物理不过期，逻辑控制过期"，但有两个风险：① **内存泄漏风险**：如果某个菜品被删除后，Redis 中的缓存 Key 会在 24 小时后才被物理清理，期间一直占用内存。改进方式是在删除菜品时主动 `delete` 缓存 Key，配合较短的逻辑过期时间，让数据尽快过期；② **数据不一致窗口**：逻辑过期后到物理过期前，系统返回的是旧数据，如果菜品价格/状态在这段时间内发生变化，用户看到的是过时信息。解决方案是写操作时主动删除缓存（Cache Aside 模式），读操作时即使逻辑过期也能通过异步刷新拿到最新数据。
+> `synchronized` / `ReentrantLock` 是 JVM 级单机锁，只在单实例内生效；多实例部署时各自持锁，仍可能多个实例同时查库重建。Redisson 分布式锁基于 Redis，跨实例生效，保证全局只有一线程刷新。**本项目用 `lock.tryLock(10, SECONDS)` + 双重检查**：加锁等待后再次读缓存，若其他线程已重建则直接返回，避免重复查库。选型依据是部署架构：单实例可用 `synchronized` 简化，多实例必须分布式锁。
 
-Q：异步刷新缓存用 `synchronized` 或 `ReentrantLock` 替代 Redisson 分布式锁可行吗？它们的核心区别是什么？
+Q：缓存处理？
 
-> **单机锁 vs 分布式锁的适用场景**：`synchronized` 和 `ReentrantLock` 都是 JVM 级别的单机锁，只能在单实例内生效。如果部署多个 Spring Boot 实例，每个实例都有自己的锁，可能多个实例同时触发缓存刷新。Redisson 分布式锁基于 Redis 实现，跨 JVM 实例生效，确保全局只有一个线程刷新。选择依据是**部署架构**：单实例部署用 `ReentrantLock` 即可，无需引入 Redisson 依赖；多实例部署必须用分布式锁。项目预留 Redisson 是为了未来横向扩展，但当前单实例部署下可以用 `synchronized` 简化实现。
+> 同步路径下用户延迟从 <1ms 涨到数百 ms。改进：核心线程按 CPU 核数 × 2、减小队列让任务尽快拒绝、或对非关键任务用丢弃策略。**本项目把异步刷新与请求解耦**（逻辑过期时同步返回旧数据、异步重建），已规避"请求线程被阻塞"的同步等待问题。
 
-Q：DishServiceImpl 中的线程池配置为核心线程 5、队列 100、拒绝策略 CallerRunsPolicy。如果菜品缓存大量失效，这个配置会导致什么问题？
+Q：查不到数据为什么也要缓存空值？为什么逻辑过期时间要加随机值？
 
-> **线程池参数调优**：当缓存大量失效时，每个请求都会提交一个缓存刷新任务到线程池。如果队列满（超过 100 个等待任务），`CallerRunsPolicy` 会让**调用线程（即处理 HTTP 请求的 Tomcat 线程）自己执行刷新任务**。这会导致两个严重问题：① Tomcat 线程被阻塞在数据库查询上，无法处理其他请求，造成整个应用响应变慢；② 如果请求本身需要等待刷新结果（同步路径），用户延迟会从 <1ms 涨到数百毫秒。改进方案是：增大核心线程数（按 CPU 核数 × 2 设置）、减小队列长度（让任务尽快拒绝而非排队）、使用自定义拒绝策略（如记录日志后直接丢弃非关键任务）。
+> ① **空值缓存防穿透**：数据库不存在的 id 每次查询都会打库，把 `data=null` 的空值缓存起来（物理 TTL 24h），后续请求直接返回 null，不再穿透到 MySQL；也正因如此，`create()` 里要先 `deleteCacheById`，防止复用同一 id 时读到旧的空值缓存。② **随机过期防雪崩**：若所有 key 同一瞬间逻辑过期，会同时触发大量异步重建，逻辑过期时间加 `RANDOM.nextInt(-5,5)` 秒把重建压力摊开。
 
 ---
 
@@ -513,6 +545,9 @@ Q：DishServiceImpl 中的线程池配置为核心线程 5、队列 100、拒绝
 ### 策略流程图
 
 ```java
+// 实体关系：Plan（套餐主表） 1:N PlanDetail（套餐菜品明细子表）
+// Plan.java 对应 plan 表，PlanDetail.java 对应 plan_detail 表
+// 通过 plan_id 外键关联，一个套餐可包含多个菜品（如：米饭x2、红烧肉x1、青菜x1）
 【新增流程】
 用户请求 → AdminPlanController/create()
     → PlanDTO 转 Plan 实体 → planService.save(plan) → MySQL 保存主表
@@ -544,23 +579,18 @@ Q：DishServiceImpl 中的线程池配置为核心线程 5、队列 100、拒绝
 ### 编码阶段
 
 ```java
-// 实体关系：Plan（套餐主表） 1:N PlanDetail（套餐菜品明细子表）
-// Plan.java 对应 plan 表，PlanDetail.java 对应 plan_detail 表
-// 通过 plan_id 外键关联，一个套餐可包含多个菜品（如：米饭x2、红烧肉x1、青菜x1）
-```
-
-```java
 // AdminPlanController.java - 套餐管理核心接口
 @RestController
 @RequestMapping("/admin/plan")
 public class AdminPlanController {
 
-    // 新增套餐：主表+明细表在同一事务中保存
-    @PostMapping
+    @OperationLogging(operation = OperationEnum.CREATE)
     @Transactional(rollbackFor = Exception.class)
+    @PostMapping
     public Result create(@RequestBody PlanDTO planDTO) {
         Plan plan = BeanUtil.toBean(planDTO, Plan.class);
         planService.save(plan);
+        planService.deleteCacheById(plan.getId());   // 清除可能残留的空值缓存（防穿透）
         // 批量保存套餐菜品明细
         List<PlanDetail> planDetailList = planDTO.getPlanDetails().stream()
                 .map(planDetail -> BeanUtil.toBean(planDetail, PlanDetail.class))
@@ -570,195 +600,81 @@ public class AdminPlanController {
     }
 
     // 分页查询：按状态和名称筛选
+    @OperationLogging(operation = OperationEnum.READ)
     @GetMapping("/all")
-    public Result readAll(DishPageDTO dishPageDTO) {
-        LambdaQueryWrapper<Plan> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Plan::getStatus, StatusConstant.ENABLE)  // 只查启用状态
-                .like(dishPageDTO.getName() != null, Plan::getName, dishPageDTO.getName());
-        IPage<Plan> page = new Page<>(dishPageDTO.getPage(), dishPageDTO.getPageSize());
-        IPage<Plan> planPage = planService.page(page, queryWrapper);
-        return Result.success(planPage);
-    }
+    public Result readAll(DishPageDTO dishPageDTO) { ... }
 
-    // 查询套餐详情：主表+菜品明细
+    // 查询套餐详情：主表+菜品明细，缓存优先，空值返回"套餐不存在"
+    @OperationLogging(operation = OperationEnum.READ)
     @GetMapping
     public Result readById(@RequestParam Long id) {
-        Plan plan = planService.readCache(id);  // 缓存读取
-        List<PlanDetail> planDetailList = planDetailService.lambdaQuery()
-                .eq(PlanDetail::getPlanId, plan.getId()).list();
-        return Result.success(plan + "::" + planDetailList);
+        Plan plan = planService.readCache(id);   // 缓存读取（逻辑过期+异步刷新）
+        if (plan == null) return Result.error("套餐不存在");
+        return Result.success(plan + "::" + planDetailService.lambdaQuery()
+                .eq(PlanDetail::getPlanId, plan.getId()).list());
+    }
+
+    @OperationLogging(operation = OperationEnum.UPDATE)
+    @PutMapping
+    public Result update(@RequestBody PlanDTO planDTO) {
+        planService.updateCache(planDTO);
+        return Result.success(OperationEnum.UPDATE + "--" + planDTO.getId());
+    }
+
+    @OperationLogging(operation = OperationEnum.DELETE)
+    @DeleteMapping
+    public Result delete(@RequestParam List<Long> ids) {
+        planService.deleteCache(ids);
+        return Result.success(OperationEnum.DELETE + "--" + ids);
     }
 }
 ```
 
+```java
+// PlanServiceImpl.java - 套餐缓存策略（与菜品完全一致：防穿透/防击穿/防雪崩）
+// 关键方法：readCache / getPlan(空值缓存+随机过期) / getPlanLock(锁+双重检查)
+//          / planCache(异步刷新) / updateCache(更新+删缓存) / deleteCache(删主表+明细+缓存)
+public Plan readCache(Long id) {
+    String value = stringRedisTemplate.opsForValue().get(PLAN_PREFIX + id);
+    if (value == null) return getPlan(id);                    // ① 无缓存 → 查库重建
+
+    RedisData redisData = JSONUtil.toBean(value, RedisData.class);
+    if (redisData.getExpireTime().isAfter(LocalDateTime.now())) {   // ② 逻辑未过期
+        if (redisData.getData() == null) return null;          // 空值缓存防穿透，不查库
+        long remainSec = Duration.between(LocalDateTime.now(), redisData.getExpireTime()).getSeconds();
+        if (remainSec < RENEW_TTL) redisData.setExpireTime(LocalDateTime.now().plusSeconds(PLUS_TTL));  // 续期
+        return BeanUtil.toBean(redisData.getData(), Plan.class);
+    }
+    planCache(id);                                            // ③ 逻辑过期 → 异步刷新
+    return redisData.getData() == null ? null : BeanUtil.toBean(redisData.getData(), Plan.class);
+}
+// 其余方法与 DishServiceImpl 结构一致，注释省略：
+//   getPlan(id)      → 空值缓存（data=null）+ 逻辑过期随机 ±5s，防穿透与雪崩
+//   getPlanLock(id)  → Redisson 锁 "plan:lock:{id}" + 双重检查，防击穿
+//   planCache(id)    → 有界线程池（核心5/队列100/CallerRunsPolicy）异步刷新
+//   updateCache(dto) → 更新 MySQL → 删缓存 → 重建明细（先删后插）
+//   deleteCache(ids) → 删主表 + 删明细 + 批量删缓存
+```
+
 ### 问题修复阶段
 
-Q：更新套餐时采用"先删后插"全量替换明细的方式，如果在高并发场景下两个请求同时更新会导致什么问题？
+Q：更新套餐"先删后插"全量替换明细，并发更新会导致什么问题？
 
-> **并发更新的竞态条件**：假设请求 A 和请求 B 同时更新同一个套餐：① 请求 A 删除旧明细 → 请求 B 也删除旧明细（无影响，因为已删除）→ 请求 A 插入新明细 → 请求 B 插入新明细。此时会出现**数据错乱**——两个请求的明细数据混合在一起。解决方案：① **乐观锁**——在 Plan 表增加 version 字段，更新时检查 version 是否匹配，不匹配则拒绝；② **分布式锁**——`RedissonClient.getLock("plan:update:" + id)` 锁定套餐，串行化更新操作；③ **唯一约束**——在 plan_detail 表增加 (plan_id, dish_id) 联合唯一索引，防止重复插入。
+> 请求 A、B 同时更新同一套餐时可能互相覆盖明细（A 删旧明细 → B 也删 → A 插新明细 → B 插新明细，结果混合错乱）。当前 `updateCache` 在同一 `@Transactional` 内"删旧插新"，事务隔离保证单请求原子，但两个并发请求之间没有串行化，**仍存在竞态窗口**。改进：① `plan` 表加 `version` 字段做乐观锁；② `RedissonClient.getLock("plan:update:{id}")` 串行化更新；③ `plan_detail` 加 `(plan_id, dish_id)` 联合唯一索引兜底。
 
 Q：PlanDetailService.saveBatch() 批量保存时，如果中间某条保存失败，会导致数据不一致吗？
 
-> **事务边界与批量保存**：不会导致不一致，因为 `@Transactional(rollbackFor = Exception.class)` 注解了整个方法。`saveBatch()` 默认在一个事务中执行所有 INSERT，任何一条失败都会触发回滚。但要注意 `rollbackFor = Exception.class` 的必要性——Spring 默认只在 `RuntimeException` 时回滚，如果业务代码抛出受检异常（如 `IOException`），不会回滚。显式指定 `rollbackFor = Exception.class` 确保所有异常都触发回滚。另一个注意点是 `saveBatch()` 的默认批量大小（默认 1000），如果明细超过 1000 条，会分批执行，但仍在同一个事务中。
+> 不会。`@Transactional(rollbackFor = Exception.class)` 把主表 + 明细全部包进同一事务，任意一条失败整体回滚。注意 `rollbackFor = Exception.class` 的必要性：Spring 默认只在 `RuntimeException` 时回滚，受检异常需显式声明。`saveBatch()` 默认批量 1000，超过会分批执行，但仍在同一事务内。
+
+Q：套餐缓存为什么和菜品几乎一模一样？
+
+> 两者同为热点商品、同样读多写少、同样要防穿透/击穿/雪崩，所以复用同一套方案：`RedisData`（data + expireTime）、空值缓存 + 随机过期、逻辑过期 + Redisson 锁 + 异步线程池刷新。仅 key 前缀（`dish:` / `plan:`）与锁名不同。菜品/套餐各写一份是为了避免过度抽象，代码结构刻意保持对称。
 
 ---
 
-## 五、购物车管理模块
+## 五、支付系统模块
 
-### 需求阶段
-
-需求背景：用户浏览菜品和套餐后，可以将商品加入购物车，支持数量调整、删除、清空等操作。购物车是下单前的暂存区域，需要支持菜品和套餐混合存储。
-
-- 购物车数据需要与用户关联，每个用户独立
-- 支持菜品和套餐两种商品类型
-- 数量调整需要实时计算金额
-
-### 策略流程图
-
-```java
-【加入购物车流程】
-用户请求 → ShoppingController/add()
-    → 根据 dishId/setmealId 查询商品信息（菜品或套餐）
-    → 检查购物车是否已存在该商品
-    ├─ 已存在 → 数量+1，重新计算金额 → 更新记录
-    └─ 不存在 → 创建新 OrderShopping 记录 → 计算金额（单价×数量）→ 保存
-    → 返回成功
-
-【查询购物车流程】
-用户请求 → ShoppingController/list()
-    → 获取当前用户 ID（从 SecurityContext）
-    → OrderShoppingService 按 userId 查询所有购物车记录
-    → 返回购物车列表（含商品信息、数量、金额）
-
-【修改数量流程】
-用户请求 → ShoppingController/update()
-    → 按 ID 查询购物车记录 → 更新 number 字段
-    → 重新计算 amount（单价×数量）→ 更新记录
-    → 返回成功
-
-【删除商品流程】
-用户请求 → ShoppingController/delete()
-    → 按 ID 删除 OrderShopping 记录
-    → 返回成功
-
-【清空购物车流程】
-用户请求 → ShoppingController/clean()
-    → 获取当前用户 ID → 批量删除该用户的所有购物车记录
-    → 返回成功
-```
-
-### 编码阶段
-
-```java
-// OrderShopping.java - 购物车实体类
-// 对应 order_shopping 表，存储用户选购的商品
-@Data
-@TableName("order_shopping")
-public class OrderShopping implements Serializable {
-    @TableId(value = "id", type = IdType.AUTO)
-    private Long id;
-    
-    private String name;           // 商品名称（冗余存储）
-    private Long userId;          // 用户ID
-    private Long dishId;          // 菜品ID（菜品商品）
-    private Long setmealId;       // 套餐ID（套餐商品）
-    private String dishFlavor;    // 菜品口味
-    private Long number;          // 数量
-    private BigDecimal amount;    // 金额（单价 × 数量）
-    private String image;         // 商品图片
-    private LocalDateTime createTime;  // 创建时间
-}
-```
-
-### 问题修复阶段
-
-Q：OrderShopping 表中同时存在 dishId 和 setmealId 两个字段，这种设计在查询时如何处理空值判断？
-
-> **多态关联查询的实现方式**：查询购物车列表时，需要根据 `dishId` 或 `setmealId` 分别查询对应的商品信息。如果字段为 null 就跳过查询。MyBatis-Plus 实现中通常用嵌套查询或 JOIN 关联：① 嵌套查询——先查 OrderShopping 列表，然后遍历每个记录，根据 dishId/setmealId 查询对应商品，这种 N+1 查询在购物车商品多时性能差；② JOIN 关联——用 SQL LEFT JOIN 关联 dish 和 plan 表，一次查询返回所有数据，性能更好。项目中选择方式①是因为购物车商品数量有限（通常 <20），N+1 查询影响可接受。
-
-Q：购物车中商品金额 amount 字段是冗余存储的，如果菜品价格变动如何保持同步？
-
-> **冗余字段的一致性维护**：冗余存储 amount 的目的是**减少 JOIN 查询**——展示购物车时不需要再关联菜品表查询价格。但冗余数据需要保持同步，有两种策略：① **实时计算**——查询购物车时实时计算 `单价 × 数量`，不存 amount 字段，缺点是每次查询都需要关联菜品表；② **写时同步**——用户加入购物车时计算并存储 amount，菜品价格变动时通过事件机制（如 @EventListener 监听菜品更新事件）批量更新购物车中的对应商品。项目选择策略①（冗余存储），但缺少价格同步机制——如果菜品涨价，用户购物车中的价格不会自动更新，需要用户手动删除后重新添加。
-
-Q：购物车操作（加入、修改数量）如何防止并发问题？
-
-> **并发控制策略**：假设用户在两个设备上同时修改同一商品的数量：设备 A 读到数量 2，设备 B 也读到数量 2，设备 A 更新为 3，设备 B 也更新为 3。结果应该是 4 但实际是 3（丢失更新）。解决方案：① **乐观锁**——在 OrderShopping 表增加 version 字段，更新时检查版本号，不匹配则重试；② **原子操作**——用 `UPDATE SET number = number + 1 WHERE id = ? AND user_id = ?` 的原子 SQL 代替先读后写；③ **Redis 缓存**——将购物车数据存在 Redis 的 Hash 结构中，用 `HINCRBY` 原子操作增加数量。项目当前实现是"先读后写"，在用户量不大的场景下可接受，但生产环境建议用原子 SQL 或 Redis。
-
----
-
-## 六、订单管理模块
-
-### 需求阶段
-
-需求背景：订单是餐饮系统的核心业务闭环，从用户下单到骑手配送完成，需要完整的订单状态流转管理。订单涉及支付、退款、配送等多个环节。
-
-- 订单状态流转：待支付 → 待接单 → 制作中 → 待取餐 → 配送中 → 已送达 → 已完成/已取消
-- 需要支持订单超时自动取消
-- 需要支持订单退款流程
-
-### 订单状态流转
-
-```
-1 待支付 → 2 待商家接单 → 3 制作中 → 4 待骑手取餐 → 5 配送中 → 6 已送达 → 7 已完成
-         ↓                                      
-   8 已取消（未接单退款、商家拒单、超时取消、售后全额退款）
-```
-
-> **注意**：订单管理模块的 Controller 层尚未实现，以下为已实现的实体类、枚举和定时任务。
-
-### 编码阶段
-
-```java
-// OrderStatusEnum.java - 订单状态枚举
-public enum OrderStatusEnum {
-    PENDING_PAYMENT(1, "待支付"),
-    PENDING_ACCEPT(2, "待商家接单"),
-    PREPARING(3, "制作中"),
-    PENDING_RIDER_PICK(4, "待骑手取餐"),
-    DELIVERING(5, "配送中"),
-    DELIVERED(6, "已送达"),
-    COMPLETED(7, "已完成"),
-    CANCELLED(8, "已取消");
-    
-    private Integer value;
-    private String description;
-}
-```
-
-```java
-// OrderTask.java - 订单超时处理定时任务
-@Component
-public class OrderTask {
-    @Autowired
-    private OrderService orderService;
-
-    // 每小时检查待骑手取餐订单，提醒骑手取餐
-    @Scheduled(cron = "0 0 * * * ?")
-    public void processTimeoutOrder() {
-        // 1. 查询待骑手取餐状态的订单
-        List<Order> pendingOrders = orderService.lambdaQuery()
-                .eq(Order::getStatus, OrderStatusEnum.PENDING_RIDER_PICK).list();
-        if (!pendingOrders.isEmpty()) {
-            log.info("有待处理订单：{}", pendingOrders);
-        }
-        // 2. 查询配送中且已超过开始配送时间的订单
-        LocalDateTime now = LocalDateTime.now();
-        List<Order> deliveringOrders = orderService.lambdaQuery()
-                .eq(Order::getDeliveryStatusEnum, DeliveryStatusEnum.NOW).list();
-        for (Order order : deliveringOrders) {
-            if (order.getStartDeliveryTime() != null && now.isAfter(order.getStartDeliveryTime())) {
-                log.info("id为{}订单需要开始派送了", order.getId());
-            }
-        }
-    }
-}
-```
-
-> **注意**：订单管理模块的问题修复阶段将在 Controller 层实现后补充。
-
----
-
-## 七、支付系统模块
+沙箱环境提供真实的支付宝 API 接口但使用测试账号，不会产生真实资金，用于开发联调。生产环境需替换为正式 APPID、应用私钥、支付宝公钥。
 
 ### 需求阶段
 
@@ -767,83 +683,153 @@ public class OrderTask {
 - 支付流程涉及同步跳转（用户可见）和异步通知（服务端验签），两者职责不同
 - 异步通知必须验签，防止伪造请求篡改订单状态
 - 退款是逆向流程，需独立的退款查询接口确认到账
+- 第三方授权登录支持支付宝，可扩展 QQ、微信等其他平台
 
-> **注意**：支付系统模块的支付 Controller（创建订单、支付、退款等）尚未实现，OAuth 授权登录已实现。
+### 策略流程图
 
-### 策略流程图（支付部分待实现）
+```java
+【电脑网站支付】
+用户请求 → GET /pay/order → AlipayService.createPagePayForm()
+    → 构造 AlipayTradePagePayRequest（out_trade_no / total_amount / subject / product_code=FAST_INSTANT_TRADE_PAY）
+    → 设置 notifyUrl（异步）+ returnUrl（同步）+ timeout_express=60m
+    → 返回支付宝收银台 HTML 表单 → 浏览器跳转收银台
 
-```
-【OAuth 授权登录 - 已实现】
-GET /oauth/authorize?redirectUri= → 302 跳转支付宝授权页
-GET /oauth/callback?auth_code= → auth_code 换 access_token → 拉取用户资料
+【同步跳转】
+GET /pay/return → 用户支付成功后跳回商户页面
 
-【电脑网站支付 - 待实现】
-→ AlipayService.createPagePayForm() → 构造 AlipayTradePagePayRequest
-→ 设置 notifyUrl（异步）+ returnUrl（同步）+ timeout_express=60m
-→ 返回支付宝收银台 HTML 表单
+【交易查询】
+GET /pay/order/query?outTradeNo → AlipayService.queryTrade() → 返回交易状态
 
-【异步通知 - 待实现】
-→ POST /pay/notify（必须公网可访问）
-→ AlipaySignature.rsaCheckV1 验签 → 校验金额 → 更新订单状态
+【退款 / 退款查询】
+POST /pay/refund → AlipayService.refund() → 构造 AlipayTradeRefundRequest → 退款
+GET /pay/refund/query?outTradeNo&outRequestNo → AlipayService.refundQuery() → 确认退款到账
 
-【退款/关单 - 待实现】
-→ POST /pay/refund → AlipayService.refund()
-→ POST /pay/order/close → 超时未支付关闭交易
+【关闭交易】
+POST /pay/order/close?outTradeNo → AlipayService.close() → 超时未支付关闭交易
+
+【OAuth 授权登录】
+GET /oauth/authorize?redirectUri → 302 跳转支付宝授权页
+GET /oauth/callback?auth_code → auth_code 换 access_token / refresh_token → 拉取用户资料
 ```
 
 ### 编码阶段
 
 ```java
-// OAuthLogin.java - 支付宝授权登录（已实现）
-// GET /oauth/authorize → 302 跳转支付宝授权页
+// PayTest.java - 支付接口入口（电脑网站支付 / 交易查询 / 退款 / 退款查询 / 关单 / 同步跳转）
+@RestController
+@RequestMapping("/pay")
+public class PayTest {
+
+    @Autowired
+    private AlipayService alipayService;
+
+    // 电脑网站支付：浏览器打开此接口会跳转到支付宝沙箱收银台
+    @GetMapping("/order")
+    public void orderPay(PayDTO payDTO, HttpServletResponse response) throws Exception {
+        String form = alipayService.createPagePayForm(payDTO);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.setContentType("text/html;charset=UTF-8");
+        response.getWriter().write(form);   // 输出支付宝收银台 HTML 表单
+        response.getWriter().flush();
+    }
+
+    // 交易查询
+    @GetMapping("/order/query")
+    public AlipayTradeQueryResponse queryOrder(@RequestParam String outTradeNo) throws Exception {
+        return alipayService.queryTrade(outTradeNo);
+    }
+
+    // 退款
+    @PostMapping("/refund")
+    public AlipayTradeRefundResponse refundOrder(RefundDTO refundDTO) throws Exception {
+        return alipayService.refund(refundDTO);
+    }
+
+    // 退款查询
+    @GetMapping("/refund/query")
+    public AlipayTradeFastpayRefundQueryResponse refundQuery(
+            @RequestParam String outTradeNo, @RequestParam String outRequestNo) throws Exception {
+        return alipayService.refundQuery(outTradeNo, outRequestNo);
+    }
+
+    // 关闭交易
+    @PostMapping("/order/close")
+    public AlipayTradeCloseResponse close(@RequestParam String outTradeNo) throws Exception {
+        return alipayService.close(outTradeNo);
+    }
+
+    // 同步跳转：支付成功后跳回商户页面
+    @GetMapping("/return")
+    public String returnUrl() {
+        return "已返回商户页面,同步返回。";
+    }
+}
+```
+
+```java
+// AlipayService.java - 支付宝核心服务（5 个操作全部实现）
+public String createPagePayForm(PayDTO payDTO) throws AlipayApiException {
+    Map<String, Object> bizContent = new LinkedHashMap<>();
+    bizContent.put("out_trade_no", payDTO.getOutTradeNo());
+    bizContent.put("total_amount", payDTO.getTotalAmount().toPlainString());
+    bizContent.put("subject", payDTO.getSubject());
+    bizContent.put("product_code", "FAST_INSTANT_TRADE_PAY");
+    bizContent.put("timeout_express", "60m");
+    AlipayTradePagePayRequest request = new AlipayTradePagePayRequest();
+    request.setNotifyUrl(alipayProperties.getNotifyUrl());   // 异步通知地址
+    request.setReturnUrl(alipayProperties.getReturnUrl());   // 同步通知地址
+    request.setBizContent(toJson(bizContent));
+    return getClient().pageExecute(request).getBody();
+}
+```
+
+```java
+// OAuthLogin.java - 支付宝授权登录
+// ① GET /oauth/authorize → 302 跳转支付宝授权页
 @GetMapping("/authorize")
 public void authorize(@RequestParam String redirectUri, HttpServletResponse response) throws IOException {
     String authorizeUrl = AUTHORIZE_URL
             + "?app_id=" + alipayProperties.getAppId()
             + "&redirect_uri=" + URLEncoder.encode(redirectUri, StandardCharsets.UTF_8)
             + "&scope=auth_user";
-    response.sendRedirect(authorizeUrl);
+    response.sendRedirect(authorizeUrl);   // 302 重定向
 }
 
-// GET /oauth/callback?auth_code= → 换取 access_token + 获取用户资料
+// ② GET /oauth/callback?auth_code= → auth_code 换 access_token，并拉取用户资料
 @GetMapping("/callback")
 public Map<String, Object> callback(@RequestParam("auth_code") String authCode) throws AlipayApiException {
-    // 1. auth_code 换取 access_token
     AlipaySystemOauthTokenRequest tokenReq = new AlipaySystemOauthTokenRequest();
     tokenReq.setCode(authCode);
     tokenReq.setGrantType("authorization_code");
     AlipaySystemOauthTokenResponse tokenResp = client.execute(tokenReq);
-
-    String accessToken = tokenResp.getAccessToken();
-    String openId = tokenResp.getOpenId();
-
-    // 2. access_token 获取用户资料（昵称、头像、性别、邮箱）
+    // accessToken 有效期 3600s，refreshToken 有效期 30 天
     AlipayUserInfoShareRequest userReq = new AlipayUserInfoShareRequest();
-    userReq.putOtherTextParam("auth_token", accessToken);
-    AlipayUserInfoShareResponse userResp = client.execute(userResp);
-
-    Map<String, Object> result = new HashMap<>();
-    result.put("openId", openId);
-    result.put("accessToken", accessToken);
-    result.put("nickName", userResp.getNickName());
-    result.put("avatar", userResp.getAvatar());
-    return result;
+    userReq.putOtherTextParam("auth_token", tokenResp.getAccessToken());
+    AlipayUserInfoShareResponse userResp = client.execute(userReq);
+    // 返回 openId / accessToken / refreshToken / 昵称 / 头像 / 性别 / 邮箱
 }
 ```
 
 ### 问题修复阶段
 
-Q：异步通知处理中，如何保证接口的幂等性——如果同一笔支付收到多次回调该怎么处理？
+Q：异步通知（/pay/notify）应该校验哪些值？
 
-> **状态机校验实现幂等**：支付宝异步通知可能因为网络重试、用户重复点击等原因发送多次。处理流程：① 查询订单当前状态 → ② 检查订单是否已经处理过（如状态已是"已支付"）→ ③ 如果已处理，直接返回 "success"（告知支付宝已收到，不再重试）→ ④ 如果未处理，更新订单状态为"已支付"。这种"先查状态再操作"的模式是支付回调的标准幂等方案。更进一步，可以用数据库的**唯一约束**——在订单表增加 `pay_notified` 标记，处理前先检查标记，已标记则跳过。
+> 支付宝异步通知是服务端对支付结果唯一可信的确认，必须做以下几重校验，否则可能被伪造请求篡改订单状态：
+> 1. **验签**：`AlipaySignature.rsaCheckV1(params, alipayPublicKey, charset, signType)`，验签失败返回 `failure`；
+> 2. **app_id 校验**：通知中的 `app_id` 必须与商户配置一致；
+> 3. **金额校验**：通知中的 `total_amount` 必须与数据库订单金额一致（用 BigDecimal 精确比较），防止篡改金额；
+> 4. **幂等校验**：订单状态已是"已支付"则跳过，避免重复处理。
+>
+> **注意**：`/pay/notify` 异步通知接口因依赖订单服务（OrderService）尚未实现，代码已写好但被注释，待订单模块落地后启用；验签失败返回 `failure` 让支付宝重试，避免丢失通知。
 
-Q：异步通知超时未返回 "success"，支付宝会重试通知。如果重试次数超过上限会怎样？
+Q：同步跳转 /pay/return 和异步通知 /pay/notify 有什么区别？为什么以异步通知为准？
 
-> **重试机制与最终一致性**：支付宝默认重试 8 次，间隔递增（15s → 15s → 30s → 3m → 10m → 20m → 30m → 30m）。如果全部失败，支付宝认为通知失败，但**支付实际是成功的**。此时商户需要主动查询订单状态进行对账。实现方式：① **定时对账**——每隔 1 小时查询"待支付但已超过 5 分钟"的订单，调用 `AlipayTradeQueryRequest` 查询支付宝侧状态；② **补偿机制**——如果对账发现支付宝已支付但本地订单未更新，手动更新订单状态。这是**最终一致性**的典型实现——通过主动查询弥补被动通知的不可靠性。
+> 同步跳转只是支付宝把用户浏览器重定向回商户页面，用户可能中途关闭浏览器，**不能作为支付成功的依据**；异步通知是支付宝服务端主动 POST 到 `notifyUrl`，**必须验签 + 校验 app_id/金额 + 幂等**后才更新订单状态。本项目同步返回只提示"已返回商户页面"，真实订单状态更新逻辑在（已注释、待订单模块落地后启用的）异步通知中实现。
 
 ---
 
-## 八、文件上传与 Excel 导出模块
+
+## 六、文件上传与 Excel 导出模块
 
 ### 需求阶段
 
@@ -868,62 +854,100 @@ Excel 下载       → GET /report/excel/download → 流式下载
 ### 编码阶段
 
 ```java
-// FileController.java - 本地文件上传（UUID 防冲突 + URLEncoder 防中文乱码）
-private static final String PATH = "ku/image";
+// FileController.java - 本地文件上传/下载（UUID 防冲突 + URLEncoder 防中文乱码）
+@RestController
+@RequestMapping("/local")
+@Slf4j
+public class FileController {
+    private static final String PATH = "ku/image";
 
-@PostMapping
-public Result upload(MultipartFile file) {
-    String originalFilename = file.getOriginalFilename();
-    File path = new File(PATH);
-    if (!path.exists()) path.mkdirs();
-    // UUID + 原扩展名，避免文件名冲突和文件遍历攻击
-    String saveName = UUID.randomUUID().toString() +
-            originalFilename.substring(originalFilename.lastIndexOf("."));
-    file.transferTo(new File(path, saveName));
-    return Result.success(path + "::" + saveName);
-}
+    @PostMapping
+    public Result upload(MultipartFile file) {
+        String originalFilename = file.getOriginalFilename();
+        File path = new File(new File(PATH).getAbsolutePath());
+        if (!path.exists()) path.mkdirs();
+        // UUID + 原扩展名，避免文件名冲突和文件遍历攻击
+        String saveName = UUID.randomUUID().toString() +
+                originalFilename.substring(originalFilename.lastIndexOf("."));
+        file.transferTo(new File(path, saveName));
+        return Result.success(path + "::" + saveName);
+    }
 
-@GetMapping
-public void download(String fileName, HttpServletResponse response) {
-    File path = new File(PATH, fileName);
-    response.setContentType("application/octet-stream");
-    // 中文文件名用 URLEncoder 编码，避免下载乱码
-    String encoded = URLEncoder.encode(fileName, StandardCharsets.UTF_8);
-    response.setHeader("Content-Disposition", "attachment;filename=" + encoded);
-    try (InputStream in = new FileInputStream(path)) {
-        StreamUtils.copy(in, response.getOutputStream());
+    @GetMapping
+    public void download(String fileName, HttpServletResponse response) {
+        File path = new File(new File(PATH).getAbsolutePath(), fileName);
+        response.setContentType("application/octet-stream");
+        // 中文文件名用 URLEncoder 编码，避免下载乱码
+        response.setHeader("Content-Disposition", "attachment;filename=" +
+                URLEncoder.encode(fileName, StandardCharsets.UTF_8));
+        try (InputStream in = new FileInputStream(path)) {
+            StreamUtils.copy(in, response.getOutputStream());
+        } // ... 省略：文件不存在校验与 IOException 处理
     }
 }
 ```
 
 ```java
-// AliOssUtil.java - 阿里云 OSS 上传
-public String uploadFile(String objectName, InputStream inputStream) {
-    OSS ossClient = new OSSClientBuilder().build(endpoint, accessKeyId, accessKeySecret);
-    try {
-        ossClient.putObject(bucketName, objectName, inputStream);
-    } finally {
-        ossClient.shutdown();  // 必须关闭，否则连接泄漏
+// AliOssUtil.java - 阿里云 OSS 上传（配置由 AliOssProperties 注入）
+@Component
+public class AliOssUtil {
+    @Autowired
+    private AliOssProperties aliOssProperties;
+
+    public String uploadFile(String objectName, InputStream inputStream) {
+        OSS ossClient = new OSSClientBuilder().build(
+                aliOssProperties.getEndpoint(),
+                aliOssProperties.getAccessKeyId(),
+                aliOssProperties.getAccessKeySecret());
+        try {
+            ossClient.putObject(aliOssProperties.getBucketName(), objectName, inputStream);
+        } finally {
+            if (ossClient != null) ossClient.shutdown();   // 必须关闭，否则连接泄漏
+        }
+        // 文件访问路径规则 https://BucketName.Endpoint/ObjectName
+        return "https://" + aliOssProperties.getBucketName() + "." +
+                aliOssProperties.getEndpoint() + "/" + objectName;
     }
-    // 返回 CDN 访问 URL：https://{bucket}.{endpoint}/{objectName}
-    return "https://" + bucketName + "." + endpoint + "/" + objectName;
+}
+```
+
+```java
+// OSSFileController.java - 阿里云 OSS 上传/下载（配合 AliOssUtil）
+@RestController
+@RequestMapping("/oss")
+public class OSSFileController {
+    @Autowired
+    private AliOssUtil aliOss;
+
+    @PostMapping
+    public ResponseEntity<Map<String, String>> uploadFile(@RequestParam("file") MultipartFile file) {
+        String objectName = UUID.randomUUID().toString() +
+                file.getOriginalFilename().substring(file.getOriginalFilename().lastIndexOf("."));
+        String url = aliOss.uploadFile(objectName, file.getInputStream());   // 上传 OSS，返回 CDN URL
+        return ResponseEntity.ok(Map.of("url", url, "filename", file.getOriginalFilename()));
+    }
+
+    @GetMapping
+    public ResponseEntity<byte[]> downloadFile(@RequestParam("url") String fileUrl) {
+        // 通过 URLConnection 拉取 OSS 字节流，Content-Disposition 返回附件 ...（省略）
+    }
 }
 ```
 
 ### 问题修复阶段
 
-Q：阿里云 OSS 上传时，为什么要配置 Bucket 的 ACL 为公共读？如果用私有读会有什么问题？
+Q：为啥使用uuid重命名？
 
-> **访问控制与资源暴露**：Bucket ACL 有三种类型：`private`（私有读）、`public-read`（公共读）、`public-read-write`（公共读写）。项目用 `public-read` 是因为菜品图片需要展示给所有用户——如果用 `private`，每次访问图片都需要生成临时签名 URL（有效期 15 分钟），前端无法直接展示。安全风险是任何人知道 URL 就能访问图片，但 OSS 的 URL 是随机生成的，且不含敏感信息，风险可控。如果有敏感文件（如身份证照片），必须用 `private` + 临时签名 URL 的方案。
+> ① UUID 全局唯一，避免文件名冲突——同名文件重复上传不会相互覆盖；② 原文件名可能包含中文、特殊字符或路径分隔符，直接保存存在安全风险（如文件遍历攻击），UUID 重命名后文件名不可预测，无法通过猜测文件名遍历服务器文件。代码中保存为 `UUID.randomUUID().toString() + 原扩展名`。
 
-Q：EasyExcel 导出大量数据时，如何避免 OOM（OutOfMemoryError）？
+Q：为什么同时提供本地和 OSS 两种存储？
 
-> **流式写入与分批次处理**：EasyExcel 的 `write()` 方法底层使用**流式写入**，而不是一次性加载所有数据到内存。实现步骤：① 用 `pageHelper.startPage()` 分页查询数据，每次查 1000 条；② 遍历分页结果，调用 `easyExcel.write()` 的 `doWrite()` 方法逐行写入；③ 每写完一批释放内存。关键配置是设置 `inMemory(false)`——让 EasyExcel 使用文件临时存储而非内存缓存。如果数据量超过 100 万行，需要考虑异步导出（导出到 OSS 后返回下载链接），同步导出会导致 HTTP 超时。
+> 开发/测试环境用本地存储（`ku/image`），简单快捷、零成本；生产环境用阿里云 OSS，支持 CDN 加速、容量无限、多实例共享。**本地存储的已知限制**：多实例部署时各实例本地磁盘不共享，文件互相不可见，生产必须切 OSS。两个 Controller（`/local`、`/oss`）接口独立，互不干扰。
 
 ---
 
 
-## 九、AOP 操作日志模块
+## 七、AOP 操作日志模块
 
 ### 需求阶段
 
@@ -945,7 +969,7 @@ Q：EasyExcel 导出大量数据时，如何避免 OOM（OutOfMemoryError）？
     → ServiceInterceptAspect 拦截 → 记录目标类/方法/入参/耗时/返回值/异常
 ```
 
-| 人、操作结果，入参 | <img src="D:\a.github\restaurant-payment\说明\原型功能\日志记录.png" style="zoom:75%;" /> |
+| 人、操作结果，入参 | <img src="说明/原型功能/日志记录.png" style="zoom:75%;" /> |
 | ------------------ | ------------------------------------------------------------ |
 
 
@@ -974,9 +998,18 @@ public @interface Info {
 // ServiceInterceptAspect.java - 双切面：@Info 耗时监控 + @OperationLogging 操作日志
 @Aspect
 @Component
+@Slf4j
 public class ServiceInterceptAspect {
 
-    // @OperationLogging 切面：自动记录操作日志
+    // 切面①：@Info 注解 - 记录目标类/方法/入参/耗时/返回值/异常（性能监控）
+    @Around("@annotation(start.aop.Info)")
+    public Object interceptServiceMethod(ProceedingJoinPoint joinPoint) throws Throwable {
+        // 省略：解析注解 desc、目标类名/方法名、入参；执行前打点，执行后打印耗时与返回，
+        //       异常时打印异常信息并继续抛出
+        return joinPoint.proceed();
+    }
+
+    // 切面②：@OperationLogging 注解 - 自动记录操作日志（成功/失败）
     @Around("@annotation(start.aop.OperationLogging)")
     public Object interceptOperationLog(ProceedingJoinPoint joinPoint) throws Throwable {
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
@@ -984,149 +1017,50 @@ public class ServiceInterceptAspect {
         String operation = annotation.operation().name();  // CREATE/READ/UPDATE/DELETE
         String methodArgs = Arrays.toString(joinPoint.getArgs());
         try {
-            Object result = joinPoint.proceed();  // 执行业务方法
-            OperationType.ok(operation, methodArgs);  // 成功日志
+            Object result = joinPoint.proceed();   // 执行业务方法
+            OperationType.ok(operation, methodArgs);   // 成功日志
             return result;
         } catch (Exception e) {
             OperationType.error(operation, methodArgs);  // 失败日志
-            throw e;  // 异常继续抛，保证全局异常处理器能处理
+            throw e;   // 异常继续抛，保证全局异常处理器能处理
         }
     }
 }
 ```
 
 ```java
-// OperationType.java - 操作日志实体（用 log.info 输出，确保默认可见）
+// OperationType.java - 操作日志实体（用 log.info 输出，确保默认配置下可见）
 public static OperationType ok(String operation, Object message) {
-    OperationType op = new OperationType();
-    op.operation = operation;
-    op.id = SecurityContextParam.getCurrentUserId();  // 从 SecurityContext 取操作人
-    op.status = "SUCCESS";
-    op.message = message;
-    log.info("用户ID:" + op.id + ", 执行操作:" + op.operation + ", " + message + ", " + op.status);
-    return op;
+    OperationType operationType = new OperationType();
+    operationType.operation = operation;
+    operationType.id = SecurityContextParam.getCurrentUserId();   // 从 SecurityContext 取操作人
+    operationType.type = SecurityContextParam.getCurrentType();   // user / emp 类型
+    operationType.status = "SUCCESS";
+    operationType.message = message;
+    log.info(operationType.type + ":ID:" + operationType.id + ", 执行操作:" +
+            operationType.operation + ", " + message + ", " + operationType.status);
+    return operationType;
 }
+// error(...) 结构与 ok() 相同，仅 status = "ERROR"
 ```
 
 ### 问题修复阶段
 
-Q：@OperationLogging 注解中定义的 name 和 method 字段，在 Spring AOP 中是如何传递给切面处理逻辑的？
+Q：@OperationLogging 注解的 operation 值是如何在 AOP 中取到的？
 
-> **自定义注解的运行时获取**：自定义注解的处理流程：① 在切面类用 `@Around("@annotation(operationLogging)")` 匹配所有标注了 `@OperationLogging` 的方法，`operationLogging` 参数就是注解实例；② 通过 `operationLogging.name()` 获取注解中定义的值；③ 如果注解需要动态参数（如操作人、操作时间），可以从切点信息（`ProceedingJoinPoint`）中获取方法参数，结合注解值构造日志内容。这种设计的好处是**编译期检查**——如果注解不存在或参数缺失，编译时报错。相比在方法调用前手动记录日志（如 `log.info("用户" + userId + "执行了" + methodName)`），注解方式将日志逻辑与业务逻辑完全解耦。
+> 注解只声明一个 `OperationEnum operation()` 属性（CREATE/READ/UPDATE/DELETE）。切面用 `@Around("@annotation(start.aop.OperationLogging)")` 匹配所有标注方法，通过 `signature.getMethod().getAnnotation(OperationLogging.class).operation().name()` 拿到操作类型，再配合 `joinPoint.getArgs()` 得到入参，调用 `OperationType.ok/error` 输出日志。注解 + 切面的组合把日志逻辑与业务完全解耦，业务方法只需加一行注解。
 
-Q：AOP 切面中获取方法参数时，如何处理参数中的敏感信息（如密码、Token）？
+Q：OperationType 把入参 toString 后打日志，如果入参里有密码/Token 怎么办？
 
-> **参数脱敏策略**：`ProceedingJoinPoint.getArgs()` 返回方法的所有参数，可能包含敏感数据（如 `login(UserLoginDTO dto)` 中的 `password` 字段）。如果直接打印，会导致敏感信息泄露。处理方式：① **反射获取字段**——通过 `args[i].getClass().getDeclaredField("password")` 获取字段，判断是否为敏感字段后进行脱敏（如只显示前 2 位 + `***`）；② **注解标记**——定义 `@Sensitive` 注解标记敏感字段，切面检测到标记后自动脱敏；③ **白名单打印**——只打印非敏感字段，敏感字段直接标记为 `[FILTERED]`。生产环境建议用方式②，通过注解显式标记，避免硬编码字段名。
+> 当前用 `Arrays.toString(joinPoint.getArgs())` 直接记录入参，**存在敏感信息泄露风险**（登录接口的密码会被写进日志）。这是已知改进点，目前未实现脱敏，但 `@OperationLogging` 只加在管理端 CRUD 上（入参是 DTO，无明文密码），风险可控。改进方向：① 用注解标记敏感字段并脱敏；② 白名单只打印非敏感字段；③ 对 login/register 等接口豁免。目前水平还不够。
 
----
+Q：为什么 OperationType 用 log.info 而不是 log.debug？
 
-## 十、AI 视觉识别服务模块（ai-see 独立服务）
-
-### 需求阶段
-
-需求背景：用户上传菜品图片，系统自动识别图片中的食物/饮料，并匹配对应套餐推荐。这是项目的差异化能力，用 Spring AI + 视觉模型 + Function Calling 实现。
-
-- 单次调用需串联「视觉识别」和「套餐查询」两个步骤，是多节点编排
-- 套餐查询需支持多条件组合（ID/名称/分类/价格/状态/描述）
-- 需要对话记忆，支持多轮交互
-
-### 策略流程图
-
-```
-用户上传图片+问题 → POST /ai/see
-    → 图片转 Base64 → CompiledGraph.invoke({question, file})
-    → node1: VisualFunction（视觉识别节点）
-        → Media(image/jpeg, base64) → visualChatClient.prompt("识别有哪些食物,饮料？")
-        → 输出 visualResult（如"鱼、啤酒、豆腐"）
-    → node2: ToolFunction（工具查询节点）
-        → toolClient.prompt(visualResult) → 触发 @Tool 方法
-        → SetmealTool.queryByDescription(关键词) → LambdaQueryWrapper 模糊匹配
-        → 输出 toolResult（匹配的套餐列表）
-    → 返回 "visualResult + toolResult"
-```
-
-### 编码阶段
-
-```java
-// NodeLink.java - Spring AI Alibaba Graph 流程编排
-// 定义 StateGraph，串联 visualFunction → toolFunction 两个节点
-@Bean("see")
-public CompiledGraph toSee() {
-    KeyStrategyFactory strategyFactory = () -> Map.of(
-            "visualResult", new ReplaceStrategy(),  // 视觉识别结果（覆盖策略）
-            "toolResult", new ReplaceStrategy()     // 工具查询结果（覆盖策略）
-    );
-    StateGraph graph = new StateGraph("see", strategyFactory);
-    // 节点
-    graph.addNode("node1", AsyncNodeAction.node_async(visualFunction));  // 视觉识别
-    graph.addNode("node2", AsyncNodeAction.node_async(toolFunction));    // 工具查询
-    // 边：START → node1 → node2 → END
-    graph.addEdge(StateGraph.START, "node1");
-    graph.addEdge("node1", "node2");
-    graph.addEdge("node2", StateGraph.END);
-    return graph.compile();
-}
-```
-
-```java
-// VisualFunction.java - 视觉识别节点（NodeAction 实现）
-// 从 state 取 Base64 图片，构造 Media 调用多模态模型识别食物
-@Override
-public Map<String, Object> apply(OverAllState state) throws Exception {
-    String base64 = (String) state.value("file").orElse("文件为空");
-    Media media = new Media(MimeTypeUtils.IMAGE_JPEG,
-            URI.create("data:image/jpeg;base64," + base64));
-    String result = visualClient.prompt()
-            .user(promptUserSpec -> promptUserSpec.text("识别有哪些食物,饮料？").media(media))
-            .call()
-            .content();
-    return Map.of("visualResult", result != null ? result : "没有识别到内容");
-}
-```
-
-```java
-// SetmealTool.java - Function Calling 工具（@Tool 注解，AI 自动调用）
-@Tool(description = "根据图片识别出的食材、饮品关键词，模糊匹配套餐的菜品描述字段")
-public List<Setmeal> queryByDescription(@ToolParam(description = "食物、饮料关键词") SetmealToolParam param) {
-    LambdaQueryWrapper<Setmeal> wrapper = new LambdaQueryWrapper<>();
-    String key = param.getDescription() == null ? "" : param.getDescription().trim();
-    if (!key.isEmpty()) {
-        wrapper.like(Setmeal::getDescription, key);  // 模糊匹配描述
-    }
-    wrapper.like(Setmeal::getName, key);  // 同时匹配名称
-    return setmealMapper.selectList(wrapper);
-}
-```
-
-```java
-// SpringAiConfig.java - 对话记忆配置（MessageWindowChatMemory 滑动窗口）
-@Bean
-public ChatMemory chatMemory(ChatMemoryRepository chatMemoryRepository) {
-    return MessageWindowChatMemory.builder()
-            .chatMemoryRepository(chatMemoryRepository)
-            .maxMessages(20)  // 保留最近 20 条消息，超出自动淘汰
-            .build();
-}
-```
-
-### 问题修复阶段
-
-Q：Function Calling（工具调用）的底层机制是如何实现的？LLM 如何知道调用哪个函数？
-
-> **Schema 定义与意图识别**：Function Calling 的实现分三步：① **定义工具 Schema**——用 `ToolCallbackDefinition.builder().name("getPlanList").description("获取套餐列表").inputSchema(...)` 定义工具名称、描述、输入参数的 JSON Schema；② **发送给 LLM**——调用 `chatClient.prompt()...tools(planTools)` 时，Spring AI 自动将 Schema 注入到 System Prompt 中，告知 LLM 可用的工具列表；③ **LLM 识别并调用**——LLM 根据用户意图判断需要调用的工具，返回 `ToolCall` 对象（包含工具名和参数），Spring AI 自动反射调用对应方法并将结果回填到对话上下文。关键是**描述的准确性**——`description` 字段直接影响 LLM 的工具选择准确率。
-
-Q：多节点 Graph 编排中，如果 node1（视觉识别）执行超时或失败，node2（工具查询）如何处理？
-
-> **状态机的容错机制**：Graph 框架的容错策略：① **超时配置**——为每个节点配置 `timeout` 参数，超时后节点抛出 `NodeTimeoutException`；② **异常传播**——节点异常会导致 Graph 执行中断，返回错误状态；③ **回退策略**——可以在 Graph 中配置 `fallback` 节点，当主节点失败时执行回退逻辑。项目中如果视觉识别失败，可以返回"无法识别菜品，请手动选择"的提示，而不是直接报错。实现方式：在 `VisualFunction` 中 try-catch 捕获异常，设置 `OverAllState.errorMessage` 字段，然后在 node2 之前增加条件边，判断是否有错误信息。
-
-Q：Spring AI 的 ChatClient 中，system、user、assistant 三种消息角色有什么区别？
-
-> **对话历史的角色分工**：三种角色对应 LLM 对话中的不同语义层次：① **System**——系统提示词，定义 AI 的行为规则（如"你是一个菜品识别助手"），在整个对话中保持不变；② **User**——用户输入，来自用户的问题或指令（如"识别这张图片的菜品"）；③ **Assistant**——AI 回复，包括文本回复和工具调用结果。Spring AI 的 `ChatClient` 通过 `.system(prompt)`、`.user(message)`、`.assistant(response)` 方法区分角色。多轮对话时，Spring AI 自动维护消息历史（`ChatMemory`），将前一轮的 Assistant 回复作为上下文传递给下一轮。
+> 默认日志级别是 INFO，`log.debug` 默认不输出，开发的调试会导致操作日志"消失"，无法定位问题。改用 `log.info` 后默认配置即可看到操作记录；运维和测试可在 `application.yml` 开启 `logging.level.start.oparation: debug` 替代。
 
 ---
 
-
-## 十一、定时任务模块
+## 八、定时任务模块
 
 ### 需求阶段
 
@@ -1182,17 +1116,13 @@ public class OrderTask {
 
 ### 问题修复阶段
 
-Q：@Scheduled 定时任务在集群部署场景下如何避免多个实例重复执行？
+Q：@Scheduled 定时任务作用？
 
-> **分布式锁与调度方案**：如果部署多个 Spring Boot 实例，每个实例都会独立执行定时任务，导致重复处理。解决方案：① **分布式锁**——在任务方法开头用 `RedissonClient.getLock("order:timeout:lock").lock()` 获取锁，只有获取锁的实例执行任务，其他实例跳过；② **ShedLock**——第三方库，基于数据库实现分布式锁，自动处理锁的获取和释放；③ **定时调度中间件**——将定时任务交给 XXL-JOB、Elastic-Job 等分布式调度框架，由中心调度器统一分发任务。项目单实例部署下不需要此处理，但未来多实例部署时必须引入。
-
-Q：Cron 表达式 "0 0 * * * ?" 每小时执行一次，如果任务执行时间超过 1 小时会发生什么？
-
-> **任务重叠与线程池竞争**：Spring 的 `ThreadPoolTaskScheduler` 支持并发执行定时任务——如果上一个任务还没执行完，下一个任务会在新线程中启动。这会导致：① 数据库查询压力倍增（多个线程同时扫描订单表）；② 业务逻辑重复执行（同一订单可能被多次处理）。解决方案：① **串行化任务**——配置 `spring.task.scheduling.pool.size=1`，确保定时任务串行执行；② **分布式锁**——即使并发执行，通过 Redis 锁保证同一订单只被处理一次；③ **优化任务耗时**——将批量操作改为增量操作，如用 `UPDATE status = 8 WHERE status = 1 AND create_time < NOW() - INTERVAL 30 MINUTE` 一条 SQL 完成，避免全表扫描。
+> `@Scheduled` 是 Spring 提供的定时任务注解，配合 `@EnableScheduling` 使用。项目用 `cron = "0 0 * * * ?"`（每小时整点）触发 `OrderTask.processTimeoutOrder()`，扫描两类超时订单：① 待骑手取餐（PENDING_RIDER_PICK）的订单，提醒骑手取餐；② 配送状态为 NOW 且已超过开始配送时间的订单，提醒开始派送。当前实现以 `log.info` 输出提醒日志，实际项目可扩展为 WebSocket 推送或自动改单。
 
 ---
 
-## 十二、店铺状态管理模块
+## 九、店铺状态管理模块
 
 ### 需求阶段
 
@@ -1218,7 +1148,7 @@ Q：Cron 表达式 "0 0 * * * ?" 每小时执行一次，如果任务执行时�
 ### 编码阶段
 
 ```java
-// AdminShoppingController.java - 管理端店铺状态控制
+// AdminShoppingController.java - 管理端店铺状态控制（营业/打烊存 Redis，读写 O(1)）
 @RestController
 @RequestMapping("/admin/shop")
 public class AdminShoppingController {
@@ -1227,6 +1157,7 @@ public class AdminShoppingController {
     private StringRedisTemplate stringRedisTemplate;
 
     // 切换营业状态：1=营业中，0=已打烊
+    @OperationLogging(operation = OperationEnum.CREATE)
     @PostMapping("{status}")
     public Result updateStatus(@PathVariable Long status) {
         String statusText = status == 1 ? "营业中" : "已打烊";
@@ -1234,25 +1165,182 @@ public class AdminShoppingController {
         return Result.success(OperationEnum.CREATE + statusText);
     }
 
-    // 查询当前营业状态
+    // 查询当前营业状态（默认打烊）
+    @OperationLogging(operation = OperationEnum.READ)
     @GetMapping
     public Result read() {
         String status = stringRedisTemplate.opsForValue().get(ShopConstant.SHOP_STATUS);
-        if (status == null) {
-            status = "已打烊";  // 默认打烊状态
-        }
+        if (status == null) status = "已打烊";
         return Result.success(OperationEnum.READ + "--" + status);
+    }
+}
+// 用户端 ShoppingController 仅提供 GET /user/shop 只读查询，逻辑与 admin read() 一致
+```
+
+### 问题修复阶段
+
+Q：店铺状态存储在 Redis 中，不是mysql？
+
+> 营业状态是单一、短时效、读写频繁的标记数据（1=营业中 / 0=已打烊），用 Redis 有以下优势：① 读写 O(1)、延迟极低，用户端每次下单前都要查询；② 多实例部署时共享同一 Redis，状态实时一致；③ 无需持久化、事务和报表，落 MySQL 反而增加一次不必要的 IO。管理端 `POST /admin/shop/{status}` 写入，用户端 `GET /user/shop` 读取，默认打烊。
+
+Q：只有"营业中/已打烊"两个值，为什么还要单独抽一个模块和接口？
+
+> 状态本身是布尔值，但它是"下单入口"的开关——用户端每次进店、下单前都要查一次，属于**高频读 + 管理端随时切**。单独抽成接口并把读写收敛到 Redis 单 key，语义清晰、多实例一致、后续易扩展（如营业时间段、忙碌程度、歇业公告）。若散落在各处业务代码里，切换状态和查询状态会难以维护。
+
+---
+
+## 十、AI 视觉识别服务模块（ai-see 独立服务）
+
+### 需求阶段
+
+需求背景：用户上传菜品图片，系统自动识别图片中的食物/饮料，并匹配对应套餐推荐。这是项目的差异化能力，用 Spring AI + 视觉模型 + Function Calling 实现。
+
+- 单次调用需串联「视觉识别」和「套餐查询」两个步骤，是多节点编排
+- 套餐查询需支持多条件组合（ID/名称/分类/价格/状态/描述）
+- 需要对话记忆，支持多轮交互
+
+### 策略流程图
+
+```
+用户上传图片+问题 → POST /ai/see
+    → 图片转 Base64 → CompiledGraph.invoke({question, file})
+    → node1: VisualFunction（视觉识别节点）
+        → Media(image/jpeg, base64) → visualChatClient.prompt("识别有哪些食物,饮料？")
+        → 输出 visualResult（如"鱼、啤酒、豆腐"）
+    → node2: ToolFunction（工具查询节点）
+        → toolClient.prompt(visualResult) → 触发 @Tool 方法
+        → SetmealTool.queryByDescription(关键词) → LambdaQueryWrapper 模糊匹配
+        → 输出 toolResult（匹配的套餐列表）
+    → 返回 "visualResult + toolResult"
+```
+
+### 编码阶段
+
+```java
+// SeeController.java - AI 视觉识别入口（ai-see 独立服务的唯一接口）
+@RestController
+@RequestMapping("/ai")
+public class SeeController {
+    @Autowired
+    private NodeLink nodeLink;
+
+    @PostMapping("/see")
+    public Object flow(@RequestParam String question, @RequestParam MultipartFile file) throws Exception {
+        // 图片转 Base64 传入 state（graph 框架无法直接处理 byte[]）
+        String fileBase64 = Base64.getEncoder().encodeToString(file.getBytes());
+        return nodeLink.toSee()
+                .invoke(Map.of("question", question, "file", fileBase64))
+                .map(s -> "==>1.visual>" + s.value("visualResult").orElse("null") +
+                          "==>2.tool>" + s.value("toolResult").orElse("null"))
+                .orElse("执行失败");
+    }
+}
+```
+
+```java
+// NodeLink.java - StateGraph 流程编排（visualFunction → toolFunction）
+@Configuration
+public class NodeLink {
+    @Bean("see")
+    public CompiledGraph toSee() {
+        KeyStrategyFactory strategyFactory = () -> Map.of(   // 节点输出用 ReplaceStrategy 覆盖策略
+                "visualResult", new ReplaceStrategy(),
+                "toolResult", new ReplaceStrategy());
+        StateGraph graph = new StateGraph("see", strategyFactory);
+        // 节点：node1 视觉识别 → node2 工具查询；边：START → node1 → node2 → END
+        graph.addNode("node1", AsyncNodeAction.node_async(visualFunction));
+        graph.addNode("node2", AsyncNodeAction.node_async(toolFunction));
+        graph.addEdge(StateGraph.START, "node1");
+        graph.addEdge("node1", "node2");
+        graph.addEdge("node2", StateGraph.END);
+        return graph.compile();   // 编译后还会打印 PlantUML 流程图便于可视化
+    }
+}
+```
+
+```java
+// VisualFunction.java - 视觉识别节点：多模态模型识别图片中的食物/饮料
+@Service
+public class VisualFunction implements NodeAction {
+    @Resource(name = "visualChatClient")      // 多模态视觉 ChatClient
+    private ChatClient visualClient;
+
+    @Override
+    public Map<String, Object> apply(OverAllState state) {
+        String base64 = (String) state.value("file").orElse("文件为空");
+        Media media = new Media(MimeTypeUtils.IMAGE_JPEG, URI.create("data:image/jpeg;base64," + base64));
+        String result = visualClient.prompt()
+                .user(u -> u.text("识别有哪些食物,饮料？").media(media))
+                .call().content();
+        return Map.of("visualResult", result != null ? result : "没有识别到内容");
+    }
+}
+
+// ToolFunction.java - 工具查询节点：把 visualResult 交给 toolClient 触发 @Tool 查询套餐
+@Service
+public class ToolFunction implements NodeAction {
+    @Resource(name = "toolClient")
+    private ChatClient toolClient;
+    @Override
+    public Map<String, Object> apply(OverAllState state) {
+        String input = state.value("visualResult").toString();   // 上一步识别结果
+        String result = toolClient.prompt().user(u -> u.text(input)).call().content();
+        return Map.of("toolResult", result != null ? result : "没有查询到内容");
+    }
+}
+```
+
+```java
+// SetmealTool.java - Function Calling 工具（共 7 个 @Tool 方法，AI 按描述自动调用）
+// 示例：按图片识别出的食材关键词模糊匹配套餐描述
+@Tool(description = "根据图片识别出的食材、饮品关键词，模糊匹配套餐的菜品描述字段，检索对应套餐")
+public List<Setmeal> queryByDescription(@ToolParam(description = "图片识别得到的食物、饮料关键词，例如：鱼、虾、牛蛙、啤酒、烤鱼、辣椒、豆腐等") SetmealToolParam param) {
+    LambdaQueryWrapper<Setmeal> wrapper = new LambdaQueryWrapper<>();
+    String key = param.getDescription() == null ? "" : param.getDescription().trim();
+    if (!key.isEmpty()) {
+        wrapper.like(Setmeal::getDescription, key);   // 模糊匹配描述字段
+    }
+    wrapper.like(Setmeal::getName, key);              // 同时匹配名称
+    return setmealMapper.selectList(wrapper);
+}
+// 其余工具：queryById(精确ID) / queryByName(名称模糊) / queryByCategoryId(分类)
+//          queryByPriceRange(价格区间) / queryByStatus(售卖状态) / queryByMultiCondition(多条件组合)
+```
+
+```java
+// SpringAiConfig.java - 对话记忆 + 日志顾问
+@Configuration
+public class SpringAiConfig {
+    @Bean public Advisor loggerAdvisor() { return new SimpleLoggerAdvisor(); }
+    @Bean public Advisor memoryAdvisor(ChatMemory chatMemory) {
+        return MessageChatMemoryAdvisor.builder(chatMemory).build();
+    }
+    @Bean
+    public ChatMemory chatMemory(ChatMemoryRepository repo) {
+        return MessageWindowChatMemory.builder()
+                .chatMemoryRepository(repo)
+                .maxMessages(20)   // 保留最近 20 条消息，超出自动淘汰
+                .build();
     }
 }
 ```
 
 ### 问题修复阶段
 
-Q：店铺状态存储在 Redis 中，如果 Redis 缓存穿透（key 不存在）或雪崩（Redis 宕机），系统如何降级处理？
+Q：Function Calling（工具调用）的底层机制是如何实现的？LLM 如何知道调用哪个函数？
 
-> **降级策略实现**：Redis 存储的店铺状态有两个风险场景：① **缓存穿透**——每次查询 key 都不存在（如 Redis 刚启动），请求直接穿透到 MySQL。解决方案是在 `AdminShopController` 的 `read()` 方法中增加 MySQL 兜底查询：`if (shopStatus == null) { shopStatus = shopMapper.selectOne(...); }`；② **缓存雪崩**——Redis 宕机，所有请求都穿透到 MySQL。解决方案是用 Spring 的 `@Cacheable` + `sync = true` 配置，当缓存不可用时走同步读取，或用 Sentinel/Cluster 模式保证 Redis 高可用。更进一步，可以用本地缓存（如 `ConcurrentHashMap`）做二级缓存，当 Redis 不可用时从本地缓存读取。
+> Spring AI 的 Function Calling 分三步：① **定义工具**——把类里的方法标注 `@Tool(description=...)` 和 `@ToolParam(description=...)`，框架自动把方法名、描述、参数描述转成 JSON Schema 注入 System Prompt；② **LLM 识别**——模型根据用户意图和工具描述判断该调哪个函数，返回工具名 + 参数；③ **框架执行并回填**——Spring AI 反射调用对应方法，把结果作为上下文继续对话。**描述的准确性**直接决定工具选择正确率，所以每个 `@Tool` 的 description 都写清了用途和参数含义。
+
+Q：为什么用 StateGraph 编排两个节点，而不是在 Controller 里顺序调用两次 ChatClient？
+
+> 直接顺序调两次也能跑通，但流程硬编码在 Controller：不可扩展（加节点要改代码）、不可复用、无法可视化。StateGraph 把"视觉识别 → 工具查询"建模成**节点 + 边 + 状态**的工作流，后续可加条件分支、并行节点、错误回退，编译后还会输出 PlantUML 流程图辅助调试。
+
+Q：node1（视觉识别）失败时，node2（工具查询）如何处理？
+
+> 当前 node2 依赖 node1 的 `visualResult`，若识别失败结果为空，toolClient 会拿着空“null”输入去查询，返回"没有查询到内容"。更健壮的做法：在 `VisualFunction` 里 try-catch 并写入错误字段，node2 前加**条件边**（有错误则跳过查询直接返回兜底提示），避免把空结果喂给下游。
 
 ---
+
 
 # 核心组件设计
 
@@ -1316,9 +1404,9 @@ Q：@CacheEvict(allEntries=true) 和 @CacheEvict(key = "#id") 两种清除策略
 
 | 依赖 | 版本 | 功能支撑 |
 | :--- | :--- | :--- |
-| Spring Boot Starter Web | 3.3.8 | AdminDishController/AdminPlanController/AdminOrderController 提供管理端 REST 接口；MultipartFile 文件上传支持 |
+| Spring Boot Starter Web | 3.3.8 | AdminDishController/AdminPlanController/AdminCategoryController 提供管理端 REST 接口；MultipartFile 文件上传支持 |
 | Spring Boot Starter Security | 3.3.8 | SecurityConfig 配置认证规则；MultiLoginAuthenticationProvider 双端登录认证；BCryptPasswordEncoder 密码加密 |
-| MyBatis Plus | 3.5.9 | DishMapper/PlanMapper/OrderMapper 实现菜品、套餐、订单数据 CRUD；AutoMetaObjectHandler 自动填充 createTime/updateTime |
+| MyBatis Plus | 3.5.9 | DishMapper/PlanMapper/RestaurantCategoryMapper 实现菜品、套餐、分类数据 CRUD；AutoMetaObjectHandler 自动填充 createTime/updateTime |
 | Spring Boot Starter Data Redis | 3.3.8 | @Cacheable/@CacheEvict 声明式缓存分类和套餐数据；RedisCacheManager 统一 TTL 配置 |
 | JJWT API/Impl/Jackson | 0.12.6 | JwtUtil 生成员工 Token（TYPE=emp）；EmployeeRefreshRequestFilter 校验 Token 并实现滑动过期 |
 | Hutool All | 5.8.26 | BeanUtil DTO 转实体；StrUtil 判空；JSONUtil 序列化/反序列化 |
@@ -1331,12 +1419,10 @@ Q：@CacheEvict(allEntries=true) 和 @CacheEvict(key = "#id") 两种清除策略
 | :--- | :--- | :--- |
 | Spring Boot Starter Web | 3.3.8 | DishController/PlanController/ShoppingController 提供用户端 REST 接口；WebSocketServer 实时消息推送 |
 | Spring Boot Starter Data Redis | 3.3.8 | 存储用户 Token（`restaurant:user:{userId}`）；存储店铺营业状态（`SHOP_STATUS`）；Spring Cache 缓存分类和套餐数据 |
-| MyBatis Plus | 3.5.9 | UserMapper/OrderShoppingMapper 实现用户、购物车数据 CRUD；UserService 查询用户信息 |
+| MyBatis Plus | 3.5.9 | UserMapper 实现用户数据 CRUD；UserService 查询用户信息 |
 | JJWT API/Impl/Jackson | 0.12.6 | JwtUtil 生成用户 Token（TYPE=user）；UserRefreshRequestFilter 校验 Token 并实现滑动过期 |
 | Hutool All | 5.8.26 | BeanUtil 对象属性拷贝；BooleanUtil 布尔值判断；UUID 生成文件名 |
 | Aliyun SDK OSS | 3.17.4 | UserController 实现用户头像上传到阿里云 OSS，返回 CDN 访问 URL |
-
-
 
 ### 支付功能依赖
 
@@ -1360,7 +1446,7 @@ Q：@CacheEvict(allEntries=true) 和 @CacheEvict(key = "#id") 两种清除策略
 | :--- | :--- | :--- |
 | Aliyun SDK OSS | 3.17.4 | AliOssUtil 实现文件上传到阿里云 OSS，返回 CDN 访问 URL |
 | Spring Boot Starter Web | 3.3.8 | MultipartFile 文件上传支持；StreamUtils 流式下载 |
-| EasyExcel | 3.3.2 | ExcelReportController 实现 Excel 读写下载（当前代码已注释，待启用） |
+| EasyExcel | 3.3.2 | ExcelReportController 实现用户数据 Excel 写入、读取、下载 |
 
 ### AOP 操作日志功能依赖
 
@@ -1396,7 +1482,7 @@ public static OperationType ok(String operation, Object message) {
     return op;
 }
 ```
-> 本项目改进：改为 `log.info(...)`，确保默认配置下操作日志可见。也可在 `application.yml` 开启 `logging.level.start.oparation: debug` 替代。
+> 本项目改进：改为 `log.info(...)`，确保默认配置下操作日志可见,开发阶段可以定位问题。运维和测试可在 `application.yml` 开启 `logging.level.start.oparation: debug` 替代。
 
 **问题3：异步通知不验签**
 
@@ -1413,7 +1499,7 @@ public String notify(HttpServletRequest request) {
 
 ---
 
-# 前端说明
+# 前端功能演示
 
 ## 管理端界面
 
@@ -1429,9 +1515,5 @@ public String notify(HttpServletRequest request) {
 | 套餐管理 | <img src="说明/原型功能/admin服务端6.png" alt="首页" style="zoom:25%;" /> |
 | 订单作台 | <img src="说明/原型功能/admin服务端7.png" alt="首页" style="zoom:25%;" /> |
 | 店铺管理 | <img src="说明/原型功能/admin服务端8.png" alt="首页" style="zoom:25%;" /> |
-
-## 用户端说明
-
-
 
 ---

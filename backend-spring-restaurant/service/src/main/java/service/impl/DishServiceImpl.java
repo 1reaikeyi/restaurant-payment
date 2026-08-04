@@ -16,10 +16,13 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import model.entity.Dish;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import service.DishDetailService;
 import service.DishService;
 import service.redis.RedisData;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Random;
@@ -39,9 +42,9 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
     private DishDetailService dishDetailService;
 
     private static final Random RANDOM = new Random();
-    private static final long RENEW_THRESHOLD = 10L;
+    private static final long RENEW_TTL = 10L;
     private static final long PLUS_TTL = 30L;
-    private static final long FINAL_TTL = 86400;
+    private static final long FINAL_TTL = 86400L;
     private static final ExecutorService DISH_EXECUTOR = new ThreadPoolExecutor(5, 5,
             60L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(100), // 有界队列，防止无限堆积
             r -> {
@@ -54,85 +57,129 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
 
     @Override
     public Dish readCache(Long id) {
-//        查询缓存
-        String value = stringRedisTemplate.opsForValue().get(RedisPrefixConstant.DISH_PREFIX + id);
-//        1不存在缓存
+        String value;
+        try {
+            value = stringRedisTemplate.opsForValue().get(RedisPrefixConstant.DISH_PREFIX + id);
+        } catch (Exception e) {
+            // Redis 不可用：降级直查数据库
+            log.info("Redis 宕机，降级查库:{}", e.getMessage());
+            return super.getById(id);
+        }
+        //        1不存在缓存：加锁双重检查，防止并发穿透打库
         if (value == null) {
             log.info("不存在缓存---------");
-            return getDish(id);
+            return getDishLock(id);
         }
-//        2缓存存在
+        // 缓存JSON损坏，直接走数据库重建缓存
         RedisData redisData;
         try {
             redisData = JSONUtil.toBean(value, RedisData.class);
         } catch (Exception e) {
-            // 缓存JSON损坏，直接走数据库重建缓存
-            return getDish(id);
+            return getDishLock(id);
         }
-//        2.2缓存为空
-        if (redisData.getData() == null) {
-            return getDish(id);
-        }
-//        2.1缓存不为空
-        //        2.2.1缓存没有过期
+        //        2缓存存在
+        //        2.1逻辑未过期：返回缓存数据；空值缓存直接返回 null（不查库，防穿透）
         if (redisData.getExpireTime().isAfter(LocalDateTime.now())){
-            long remainSec = java.time.Duration.between(LocalDateTime.now(), redisData.getExpireTime()).getSeconds();
-            // 临近逻辑过期时间（小于阈值），异步续期 RedisData 的 expireTime
-            // 注意：Redis 键 TTL 仍为 FINAL_TTL（长 TTL），保证物理不过期
-            if (remainSec < RENEW_THRESHOLD) {
-                redisData.setExpireTime(LocalDateTime.now().plusSeconds(PLUS_TTL));
-                stringRedisTemplate.opsForValue().set(RedisPrefixConstant.DISH_PREFIX + id, JSONUtil.toJsonStr(redisData),
-                        FINAL_TTL, TimeUnit.SECONDS);
+            if (redisData.getData() == null) {
+                return null;
             }
-            log.info("缓存没有过期------------");
-            Dish dish = BeanUtil.toBean(redisData.getData(), Dish.class);
-            return dish;
+            long remainSec = Duration.between(LocalDateTime.now(), redisData.getExpireTime()).getSeconds();
+            if (remainSec < RENEW_TTL) {
+                redisData.setExpireTime(LocalDateTime.now().plusSeconds(PLUS_TTL));
+                try {
+                    stringRedisTemplate.opsForValue().set(RedisPrefixConstant.DISH_PREFIX + id, JSONUtil.toJsonStr(redisData),
+                            FINAL_TTL, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    log.info("续期写缓存失败:"+ e.getMessage());
+                }
+            }
+            log.info("缓存dish没有过期------------");
+            return BeanUtil.toBean(redisData.getData(), Dish.class);
         }
-        //        2.2.2缓存过期
+        //        2.2逻辑过期：返回旧数据，异步重建缓存
         try {
             log.info("缓存过期-------------");
-            Dish dish = getDishCache(id);
-            if (dish == null) {
-                dish = BeanUtil.toBean(redisData.getData(), Dish.class);
-            }
-            return dish;
+            dishCache(id);
         } catch (Exception e) {
-            //旧数据
-            Dish dish = BeanUtil.toBean(redisData.getData(), Dish.class);
-            return dish;
+            log.info("异步刷新失败:{}", e.getMessage());
         }
-
+        return redisData.getData() == null ? null : BeanUtil.toBean(redisData.getData(), Dish.class);
+    }
+    /**
+     * 避免缓存击穿（多个并发请求同时查库）
+     */
+    private Dish getDishLock(Long id) {
+        RLock lock = redissonClient.getLock("dish:lock:" + id);
+        boolean locked = false;
+        try {
+            locked = lock.tryLock(10, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.info("Redis 不可用,直接查库:{}", e.getMessage());
+            return getDish(id);
+        }
+        try {
+            if (!locked) {
+               return null;
+            }
+            // 双重检查：等待期间其他线程可能已重建缓存
+            String latestVal;
+            try {
+                latestVal = stringRedisTemplate.opsForValue().get(RedisPrefixConstant.DISH_PREFIX + id);
+            } catch (Exception e) {
+                latestVal = null; // Redis 异常，视为无缓存，走查库重建
+            }
+            if (latestVal != null) {
+                try {
+                    RedisData cached = JSONUtil.toBean(latestVal, RedisData.class);
+                    if (cached.getExpireTime().isAfter(LocalDateTime.now())) {
+                        // 缓存已由其他线程重建且有效，直接返回（含空值缓存）
+                        return cached.getData() == null ? null : BeanUtil.toBean(cached.getData(), Dish.class);
+                    }
+                } catch (Exception ignore) {
+                    // 缓存解析失败，忽略，走查库重建
+                }
+            }
+            return getDish(id);
+        } finally {
+            if (locked && lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
+        }
     }
     private Dish getDish(Long id){
         //查询数据库
         Dish dish = super.getById(id);
         RedisData redisData = new RedisData();
+        //缓存穿透
         if (dish == null) {
-            // 缓存空值防止缓存穿透：Redis 键 TTL 用 FINAL_TTL（长 TTL），
-            // 逻辑过期时间设短一些（PLUS_TTL），由 readCache 中的逻辑过期判断处理
             redisData.setData(null);
             redisData.setExpireTime(LocalDateTime.now().plusSeconds(PLUS_TTL+ (RANDOM.nextInt(-5,5))));
-            stringRedisTemplate.opsForValue().set(RedisPrefixConstant.DISH_PREFIX + id, JSONUtil.toJsonStr(redisData),
-                    FINAL_TTL, TimeUnit.SECONDS);
+            try {
+                stringRedisTemplate.opsForValue().set(RedisPrefixConstant.DISH_PREFIX + id, JSONUtil.toJsonStr(redisData),
+                        FINAL_TTL, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                log.info("空值缓存写入失败{}", e.getMessage());
+            }
             return null;
         }
-        // 写入 RedisData，逻辑过期时间 PLUS_TTL，Redis 键 TTL 用 FINAL_TTL（长 TTL），
-        // 实现"逻辑过期 + 异步刷新"缓存模式
         redisData.setData(dish);
         redisData.setExpireTime(LocalDateTime.now().plusSeconds(PLUS_TTL + (RANDOM.nextInt(-5,5))));
-        stringRedisTemplate.opsForValue().set(RedisPrefixConstant.DISH_PREFIX + id, JSONUtil.toJsonStr(redisData),
-                FINAL_TTL, TimeUnit.SECONDS);
+        try {
+            stringRedisTemplate.opsForValue().set(RedisPrefixConstant.DISH_PREFIX + id, JSONUtil.toJsonStr(redisData),
+                    FINAL_TTL, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.info("缓存写入失败" + e.getMessage());
+        }
         return dish;
     }
-    private Dish getDishCache(Long id){
+    private void dishCache(Long id){
         DISH_EXECUTOR.submit(() -> {
             log.info("缓存过期，DISH_EXECUTOR处理-------------");
             RLock redissonLock = redissonClient.getLock("dish:lock:" + id);
             boolean locked = false;
             try {
-                locked = redissonLock.tryLock(0, TimeUnit.SECONDS);
+                locked = redissonLock.tryLock(10, TimeUnit.SECONDS);
                 if (!locked) {
-                    log.info("缓存过期，已有其他线程在刷新，跳过");
                     return;
                 }
                 // 双重检查：防止多个异步任务同时进入后重复刷新
@@ -144,9 +191,8 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
                     } catch (Exception e) {
                         ckerkeData = null;
                     }
-                    if (ckerkeData != null
-                            && ckerkeData.getData() != null
-                            && ckerkeData.getExpireTime().isAfter(LocalDateTime.now())) {
+                    // 双重检查：缓存仍有效（含空值缓存）则无需重复刷新
+                    if (ckerkeData != null && ckerkeData.getExpireTime().isAfter(LocalDateTime.now())) {
                         return;
                     }
                 }
@@ -160,7 +206,6 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
                 }
             }
         });
-        return null;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -169,9 +214,7 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
         // 1.更新菜品基本信息（update_time/update_user 由填充器自动写入）
         Dish dish = BeanUtil.toBean(dishDTO, Dish.class);
         super.updateById(dish);
-        // 2.删除缓存，保证下次读取时重建
-        stringRedisTemplate.delete(RedisPrefixConstant.DISH_PREFIX + dish.getId());
-        // 3.重建菜品口味：先删除旧口味，再插入新口味
+        // 2.重建菜品口味：先删除旧口味，再插入新口味
         dishDetailService.remove(new LambdaQueryWrapper<DishDetail>()
                 .eq(DishDetail::getDishId, dish.getId()));
         List<DishDetail> dishDetailList = dishDTO.getDishDetails();
@@ -179,6 +222,17 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
             dishDetailList.forEach(detail -> detail.setDishId(dish.getId()));
             dishDetailService.saveBatch(dishDetailList);
         }
+        // 3.事务提交后再删除缓存：
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    stringRedisTemplate.delete(RedisPrefixConstant.DISH_PREFIX + dish.getId());
+                } catch (Exception e) {
+                    log.info("缓存删除失败:"+e.getMessage());
+                }
+            }
+        });
     }
     @Transactional(rollbackFor = Exception.class)
     @Override
@@ -188,8 +242,21 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
         dishDetailService.remove(new LambdaQueryWrapper<DishDetail>()
                 .in(DishDetail::getDishId, ids));
         // 2.删除缓存
-        for (Long id : ids) {
+        try {
+            stringRedisTemplate.delete(ids.stream()
+                    .map(id -> RedisPrefixConstant.DISH_PREFIX + id)
+                    .toList());
+        } catch (Exception e) {
+            log.info("缓存删除失败(忽略):{}", e.getMessage());
+        }
+    }
+
+    @Override
+    public void deleteCacheById(Long id) {
+        try {
             stringRedisTemplate.delete(RedisPrefixConstant.DISH_PREFIX + id);
+        } catch (Exception e) {
+            log.info("缓存删除失败" + e.getMessage());
         }
     }
 }

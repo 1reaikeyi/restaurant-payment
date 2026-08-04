@@ -17,4 +17,6 @@ public interface DishService extends IService<Dish> {
     void updateCache(DishDTO dishDTO);
 
     void deleteCache(List<Long> ids);
+
+    void deleteCacheById(Long id);
 }

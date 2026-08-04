@@ -44,6 +44,9 @@ public class DishController {
     @GetMapping
     public Result readById(@RequestParam Long id) {
         Dish dish = dishService.readCache(id);
+        if (dish == null) {
+            return Result.error("菜品不存在");
+        }
         List<DishDetail> dishDetailList = dishDetailService.lambdaQuery().eq(DishDetail::getDishId, dish.getId()).list();
         return Result.success(dish+"::"+dishDetailList);
     }

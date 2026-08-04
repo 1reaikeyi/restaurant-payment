@@ -14,5 +14,7 @@ public interface PlanService extends IService<Plan> {
 
     void deleteCache(List<Long> ids);
 
+    void deleteCacheById(Long id);
+
     Plan readCache(Long id);
 }

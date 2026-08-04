@@ -39,6 +39,8 @@ public class AdminDishController {
     public Result create(@RequestBody DishDTO dishDTO) {
         Dish dish = BeanUtil.toBean(dishDTO, Dish.class);
         dishService.save(dish);
+        // 清除可能残留的空值缓存（防穿透），避免复用同一 id 时读到旧空值
+        dishService.deleteCacheById(dish.getId());
         List<DishDetail> dishDetailList = dishDTO.getDishDetails().stream()
                 .map(dishDetail -> BeanUtil.toBean(dishDetail, DishDetail.class))
                 .toList();
@@ -61,6 +63,9 @@ public class AdminDishController {
     @GetMapping
     public Result readById(@RequestParam Long id) {
         Dish dish = dishService.readCache(id);
+        if (dish == null) {
+            return Result.error("菜品不存在");
+        }
         List<DishDetail> dishDetailList = dishDetailService.lambdaQuery().eq(DishDetail::getDishId, dish.getId()).list();
         return Result.success(dish+"::"+dishDetailList);
     }

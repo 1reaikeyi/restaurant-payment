@@ -35,6 +35,8 @@ public class AdminPlanController {
     public Result create(@RequestBody PlanDTO planDTO) {
         Plan plan = BeanUtil.toBean(planDTO, Plan.class);
         planService.save(plan);
+        // 清除可能残留的空值缓存（防穿透），避免复用同一 id 时读到旧空值
+        planService.deleteCacheById(plan.getId());
         List<PlanDetail> planDetailList = planDTO.getPlanDetails().stream()
                 .map(planDetail -> BeanUtil.toBean(planDetail, PlanDetail.class))
                 .toList();
@@ -57,6 +59,9 @@ public class AdminPlanController {
     @GetMapping
     public Result readById(@RequestParam Long id) {
         Plan plan = planService.readCache(id);
+        if (plan == null) {
+            return Result.error("套餐不存在");
+        }
         List<PlanDetail> planDetailList = planDetailService.lambdaQuery().eq(PlanDetail::getPlanId, plan.getId()).list();
         return Result.success(plan+"::"+planDetailList);
     }

@@ -52,6 +52,9 @@ public class PlanDTO implements Serializable {
      * 图片
      */
     private String image;
+    /**
+     * planDetails
+     */
 
     private List<PlanDetail> planDetails;
 }

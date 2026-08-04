@@ -43,7 +43,7 @@ public class PlanDetail implements Serializable {
     private String dishId;
 
     /**
-     * 菜品名称（冗余字段）
+     * 菜品名称
      */
     @TableField("name")
     private String name;
