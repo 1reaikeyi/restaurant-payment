@@ -12,9 +12,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import start.controller.支付宝.config.AlipayConfig;
+import start.controller.支付宝.config.ZhifubaoConfig;
 import jakarta.servlet.http.HttpServletResponse;
-import start.controller.支付宝.config.AlipayProperties;
+import start.controller.支付宝.config.ZhifubaoProperties;
 
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -30,15 +30,15 @@ public class OAuthLoginController {
     private static final String AUTHORIZE_URL = "https://openauth-sandbox.dl.alipaydev.com/oauth2/publicAppAuthorize.htm";
 
     @Autowired
-    private AlipayConfig alipayConfig;
+    private ZhifubaoConfig zhifubaoConfig;
     @Autowired
-    private AlipayProperties alipayProperties;
+    private ZhifubaoProperties zhifubaoProperties;
 
     /** ① 生成授权链接并 302 自动跳转到支付宝授权页（浏览器直接访问即可开始授权） */
     @GetMapping("/authorize")
     public void authorize(@RequestParam String redirectUri, HttpServletResponse response) throws IOException {
         String authorizeUrl = AUTHORIZE_URL
-                + "?app_id=" + alipayProperties.getAppId()
+                + "?app_id=" + zhifubaoProperties.getAppId()
                 + "&redirect_uri=" + URLEncoder.encode(redirectUri, StandardCharsets.UTF_8)
                 + "&scope=auth_user";
         // 302 重定向，浏览器自动跳转到支付宝授权页
@@ -51,7 +51,7 @@ public class OAuthLoginController {
         if (authCode == null || authCode.isBlank()) {
             throw new IllegalArgumentException("authCode不能为空");
         }
-        AlipayClient client = alipayConfig.getAlipayClient();
+        AlipayClient client = zhifubaoConfig.getAlipayClient();
 
         // 1. auth_code 换取 access_token
         AlipaySystemOauthTokenRequest tokenReq = new AlipaySystemOauthTokenRequest();

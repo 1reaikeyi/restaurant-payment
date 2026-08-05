@@ -1,0 +1,1100 @@
+<template>
+  <div class="order-container">
+    <!-- 订单状态标签页 -->
+    <div class="order-tabs">
+      <div
+        v-for="item in orderTabs"
+        :key="item.value"
+        class="tab-item"
+        :class="{ active: activeTab === item.value }"
+        @click="handleTabChange(item.value)"
+      >
+        <el-badge
+          v-if="[2, 3, 4].includes(item.value) && item.num > 0"
+          :value="item.num > 99 ? '99+' : item.num"
+          :max="99"
+          class="tab-badge"
+        >
+          <span class="tab-label">{{ item.label }}</span>
+        </el-badge>
+        <span v-else class="tab-label">{{ item.label }}</span>
+      </div>
+    </div>
+
+    <!-- 搜索栏 -->
+    <!-- 注意：后端只支持手机号查询，订单号查询已移除 -->
+    <div class="search-bar">
+      <el-form :inline="true" :model="searchForm">
+        <el-form-item label="手机号">
+          <el-input
+            v-model="searchForm.phone"
+            placeholder="请填写手机号"
+            clearable
+            @clear="handleSearch"
+            @keyup.enter="handleSearch"
+          />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="warning" @click="handleSearch">查询</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+
+    <!-- 订单列表 -->
+    <el-table :data="tableData" stripe v-loading="loading" class="order-table">
+      <el-table-column prop="id" label="订单号" min-width="150" />
+      <!-- 订单菜品列已移除，改为在详情弹窗中展示完整菜品信息 -->
+      <el-table-column
+        v-if="activeTab === 0"
+        label="订单状态"
+        min-width="200"
+      >
+        <template #default="{ row }">
+          <el-tag :type="getStatusType(row.status)" effect="light">
+            {{ getStatusText(row.status) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        v-if="[0, 5, 6, 7].includes(activeTab)"
+        prop="consignee"
+        label="用户名"
+        min-width="100"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        v-if="[0, 5, 6, 7].includes(activeTab)"
+        prop="phone"
+        label="手机号"
+        min-width="100"
+      />
+      <el-table-column
+        v-if="[0, 2, 3, 4, 5, 6, 7].includes(activeTab)"
+        prop="address"
+        label="地址"
+        min-width="200"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        v-if="[0, 6].includes(activeTab)"
+        prop="orderTime"
+        label="下单时间"
+        min-width="200"
+      />
+      <el-table-column
+        v-if="activeTab === 6"
+        prop="cancelTime"
+        label="取消时间"
+        min-width="160"
+      />
+      <el-table-column
+        v-if="activeTab === 6"
+        prop="cancelReason"
+        label="取消原因"
+        min-width="120"
+      />
+      <el-table-column
+        v-if="activeTab === 5"
+        prop="deliveryTime"
+        label="送达时间"
+        min-width="100"
+      />
+      <el-table-column
+        v-if="[2, 3, 4].includes(activeTab)"
+        prop="estimatedDeliveryTime"
+        label="预计送达时间"
+        min-width="100"
+      />
+      <el-table-column
+        v-if="[0, 2, 5].includes(activeTab)"
+        label="实收金额"
+        min-width="100"
+        align="center"
+      >
+        <template #default="{ row }">
+          <span class="amount">￥{{ row.amount?.toFixed(2) }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column
+        v-if="[2, 3, 4, 5].includes(activeTab)"
+        prop="remark"
+        label="备注"
+        min-width="120"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        v-if="[2, 3, 4].includes(activeTab)"
+        prop="tablewareNumber"
+        label="餐具数量"
+        min-width="80"
+        align="center"
+      />
+      <el-table-column label="操作" width="180" align="center" fixed="right">
+        <template #default="{ row }">
+          <el-button
+            v-if="row.statusNum === 2"
+            type="warning"
+            link
+            size="small"
+            @click="handleOrderAccept(row)"
+          >
+            接单
+          </el-button>
+          <el-button
+            v-if="row.statusNum === 3"
+            type="warning"
+            link
+            size="small"
+            @click="handleDelivery(row)"
+          >
+            派送
+          </el-button>
+          <el-button
+            v-if="row.statusNum === 4"
+            type="success"
+            link
+            size="small"
+            @click="handleComplete(row)"
+          >
+            完成
+          </el-button>
+          <el-button
+            v-if="row.statusNum === 2"
+            type="danger"
+            link
+            size="small"
+            @click="handleReject(row)"
+          >
+            拒单
+          </el-button>
+          <el-button
+            v-if="[1, 3, 4, 5].includes(row.statusNum)"
+            type="danger"
+            link
+            size="small"
+            @click="handleCancel(row)"
+          >
+            取消
+          </el-button>
+          <el-button type="primary" link size="small" @click="handleViewDetail(row)">
+            查看
+          </el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <!-- 空状态 -->
+    <el-empty v-if="!loading && tableData.length === 0" description="暂无订单数据" />
+
+    <!-- 分页 -->
+    <el-pagination
+      v-if="total > 0"
+      class="pagination"
+      v-model:current-page="pagination.page"
+      v-model:page-size="pagination.pageSize"
+      :page-sizes="[10, 20, 30, 40]"
+      layout="total, sizes, prev, pager, next, jumper"
+      :total="total"
+      @size-change="fetchOrderList"
+      @current-change="fetchOrderList"
+    />
+
+    <!-- 订单详情弹窗 -->
+    <el-dialog
+      v-model="detailVisible"
+      title="订单信息"
+      width="55%"
+      :close-on-click-modal="false"
+      class="order-detail-dialog"
+    >
+      <el-scrollbar style="height: 100%">
+        <div class="detail-content">
+          <!-- 订单状态头部 -->
+          <div class="detail-header">
+            <div class="header-left">
+              <span class="order-number">订单号：{{ detailData.id }}</span>
+              <el-tag :type="getStatusType(detailData.status)">
+                {{ getStatusText(detailData.status) }}
+              </el-tag>
+            </div>
+            <p class="order-time">下单时间：{{ detailData.orderTime }}</p>
+          </div>
+
+          <!-- 用户信息 -->
+          <div class="user-section">
+            <div class="user-info-box">
+              <div class="info-row">
+                <span class="info-label">用户名：</span>
+                <span class="info-value">{{ detailData.consignee }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">手机号：</span>
+                <span class="info-value">{{ detailData.phone }}</span>
+              </div>
+              <div v-if="[2, 3, 4, 5].includes(detailData.statusNum)" class="info-row">
+                <span class="info-label">{{ detailData.statusNum === 5 ? '送达时间：' : '预计送达时间：' }}</span>
+                <span class="info-value">
+                  {{ detailData.statusNum === 5 ? detailData.deliveryTime : detailData.estimatedDeliveryTime }}
+                </span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">地址：</span>
+                <span class="info-value">{{ detailData.address }}</span>
+              </div>
+            </div>
+            <div class="user-remark" :class="{ 'cancel-remark': detailData.statusNum === 6 }">
+              <span class="remark-title">{{ detailData.statusNum === 6 ? '取消原因' : '备注' }}：</span>
+              <span class="remark-content">
+                {{ detailData.statusNum === 6 ? (detailData.cancelReason || detailData.rejectionReason) : detailData.remark }}
+              </span>
+            </div>
+          </div>
+
+          <!-- 菜品信息 -->
+          <div class="dish-section">
+            <div class="section-title">菜品</div>
+            <div class="dish-list">
+              <div
+                v-for="(item, index) in detailData.orderDetailList"
+                :key="index"
+                class="dish-item"
+              >
+                <div class="dish-info">
+                  <span class="dish-name">{{ item.name }}</span>
+                  <span class="dish-num">x{{ item.number }}</span>
+                </div>
+                <span class="dish-price">￥{{ item.amount?.toFixed(2) }}</span>
+              </div>
+            </div>
+            <div class="dish-summary">
+              <span>菜品小计：</span>
+              <span class="summary-price">￥{{ ((detailData.amount || 0) - 6 - (detailData.packAmount || 0)).toFixed(2) }}</span>
+            </div>
+          </div>
+
+          <!-- 费用信息 -->
+          <div class="amount-section">
+            <div class="section-title">费用</div>
+            <div class="amount-list">
+              <div class="amount-item">
+                <span>菜品小计：</span>
+                <span>￥{{ ((detailData.amount || 0) - 6 - (detailData.packAmount || 0)).toFixed(2) }}</span>
+              </div>
+              <div class="amount-item">
+                <span>派送费：</span>
+                <span>￥6.00</span>
+              </div>
+              <div class="amount-item">
+                <span>打包费：</span>
+                <span>￥{{ (detailData.packAmount || 0).toFixed(2) }}</span>
+              </div>
+              <div class="amount-item total">
+                <span>合计：</span>
+                <span>￥{{ (detailData.amount || 0).toFixed(2) }}</span>
+              </div>
+              <div class="amount-item">
+                <span>支付渠道：</span>
+                <span>{{ detailData.payMethod === 1 ? '微信支付' : '支付宝支付' }}</span>
+              </div>
+              <div class="amount-item">
+                <span>支付时间：</span>
+                <span>{{ detailData.checkoutTime }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </el-scrollbar>
+
+      <template #footer>
+        <div class="dialog-footer">
+          <el-checkbox
+            v-if="detailData.statusNum === 2 && activeTab === 2"
+            v-model="isAutoNext"
+          >
+            处理完自动跳转下一条
+          </el-checkbox>
+          <el-button
+            v-if="detailData.statusNum === 2"
+            type="danger"
+            @click="handleReject(rowData)"
+          >
+            拒 单
+          </el-button>
+          <el-button
+            v-if="detailData.statusNum === 2"
+            type="warning"
+            @click="handleOrderAccept(rowData)"
+          >
+            接 单
+          </el-button>
+          <el-button
+            v-if="[1, 3, 4, 5].includes(detailData.statusNum)"
+            @click="detailVisible = false"
+          >
+            返 回
+          </el-button>
+          <el-button
+            v-if="detailData.statusNum === 3"
+            type="warning"
+            @click="handleDelivery(rowData)"
+          >
+            派 送
+          </el-button>
+          <el-button
+            v-if="detailData.statusNum === 4"
+            type="success"
+            @click="handleComplete(rowData)"
+          >
+            完 成
+          </el-button>
+          <el-button
+            v-if="[1].includes(detailData.statusNum)"
+            type="danger"
+            @click="handleCancel(rowData)"
+          >
+            取消订单
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- 取消/拒单原因弹窗 -->
+    <el-dialog
+      v-model="cancelVisible"
+      :title="cancelTitle + '原因'"
+      width="450px"
+      :close-on-click-modal="false"
+    >
+      <el-form label-width="100px">
+        <el-form-item :label="cancelTitle + '原因：'">
+          <el-select v-model="cancelReason" placeholder="请选择" style="width: 100%">
+            <el-option
+              v-for="item in cancelReasonList"
+              :key="item.value"
+              :label="item.label"
+              :value="item.label"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="cancelReason === '自定义原因'" label="原因：">
+          <el-input
+            v-model="customReason"
+            type="textarea"
+            :placeholder="'请填写' + cancelTitle + '原因（限20字内）'"
+            maxlength="20"
+            show-word-limit
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="cancelVisible = false">取 消</el-button>
+        <el-button type="warning" @click="confirmCancel">确 定</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  readAllOrders,
+  getOrderStatistics,
+  searchOrders,
+  getOrderDetail,
+  confirmOrder,
+  cancelOrder,
+  deliveryOrder,
+  completeOrder
+} from '@/api/aimin/order.js'
+
+// 路由
+const route = useRoute()
+
+// 加载状态
+const loading = ref(false)
+
+// 当前标签页
+const activeTab = ref(0)
+
+// 分页参数
+const pagination = reactive({
+  page: 1,
+  pageSize: 10
+})
+
+// 总数
+const total = ref(0)
+
+// 表格数据
+const tableData = ref([])
+
+// 搜索表单
+// 注意：后端只支持手机号查询，订单号查询已移除
+const searchForm = reactive({
+  phone: ''
+})
+
+// 订单统计 - 适配后端新的统计字段
+const orderStatics = reactive({
+  pendingPayment: 0,        // 待支付
+  toBeConfirmed: 0,         // 待商家接单
+  merchantCooking: 0,       // 商家制作中
+  pendingRiderPick: 0,      // 待骑手取餐
+  riderDelivering: 0,       // 骑手配送中
+  riderArrived: 0,          // 骑手已送达
+  completed: 0,             // 订单已完成
+  cancelled: 0              // 订单已取消
+})
+
+// 详情弹窗
+const detailVisible = ref(false)
+const detailData = ref({})
+const rowData = ref({})
+const isAutoNext = ref(true)
+
+// 取消/拒单弹窗
+const cancelVisible = ref(false)
+const cancelTitle = ref('')
+const cancelReason = ref('')
+const customReason = ref('')
+const currentOrderId = ref('')
+
+// 取消原因列表
+const cancelReasonList = ref([
+  { value: 1, label: '订单量较多，暂时无法接单' },
+  { value: 2, label: '菜品已销售完，暂时无法接单' },
+  { value: 3, label: '餐厅已打烊，暂时无法接单' },
+  { value: 0, label: '自定义原因' }
+])
+
+// 取消订单原因列表
+const cancelOrderReasonList = ref([
+  { value: 1, label: '订单量较多，暂时无法接单' },
+  { value: 2, label: '菜品已销售完，暂时无法接单' },
+  { value: 3, label: '骑手不足无法配送' },
+  { value: 4, label: '客户电话取消' },
+  { value: 0, label: '自定义原因' }
+])
+
+// 订单标签页 - 使用后端返回的完整统计数据
+const orderTabs = computed(() => [
+  { label: '全部订单', value: 0, num: 0 },
+  { label: '等待支付', value: 1, num: orderStatics.pendingPayment },
+  { label: '等待商家接单', value: 2, num: orderStatics.toBeConfirmed },
+  { label: '商家接单制作中', value: 3, num: orderStatics.merchantCooking },
+  { label: '待骑手取餐', value: 4, num: orderStatics.pendingRiderPick },
+  { label: '骑手已取餐', value: 5, num: orderStatics.riderDelivering },
+  { label: '骑手已送达', value: 6, num: orderStatics.riderArrived },
+  { label: '订单已完成', value: 7, num: orderStatics.completed },
+  { label: '订单已取消', value: 8, num: orderStatics.cancelled }
+])
+
+// 获取订单状态文本
+const getStatusText = (status) => {
+  const statusMap = {
+    'PENDING_PAYMENT': "待支付：下单未付款",
+    'PENDING_MERCHANT_ACCEPT': "待商家接单：已付款，商家还没接单",
+    'MERCHANT_COOKING': "商家接单,制作中：商家确认接单，正在做菜",
+    'PENDING_RIDER_PICK': "待骑手取餐：商家出餐完成，骑手还没到店",
+    'RIDER_DELIVERING': "骑手已取餐，配送中：骑手拿到餐，在路上，实时看定位",
+    'RIDER_ARRIVED': "骑手已送达：骑手点送达，等待用户确认",
+    'COMPLETED': "订单已完成：系统自动确认收货",
+    'CANCELLED': "订单已取消：未接单退款、商家拒单、超时取消、售后全额退款"
+  };
+  return statusMap[status] || '未知';
+};
+
+// 获取订单状态标签类型
+const getStatusType = (status) => {
+  const typeMap = {
+    'PENDING_PAYMENT': 'info',          // 待支付
+    'PENDING_MERCHANT_ACCEPT': 'warning',// 待商家接单
+    'MERCHANT_COOKING': 'warning',      // 商家制作中
+    'PENDING_RIDER_PICK': 'primary',    // 待骑手取餐
+    'RIDER_DELIVERING': 'primary',      // 配送中
+    'RIDER_ARRIVED': 'primary',         // 骑手已送达
+    'COMPLETED': 'success',             // 订单已完成
+    'CANCELLED': 'danger'               // 订单已取消
+  }
+  return typeMap[status] || 'info'
+}
+
+// 获取订单统计
+const fetchOrderStatistics = async () => {
+  try {
+    const res = await getOrderStatistics()
+    if (res?.data) {
+      Object.assign(orderStatics, res.data)
+    }
+  } catch (error) {
+    console.error('获取订单统计失败:', error)
+  }
+}
+
+// 获取订单列表
+// 注意：后端接口限制 - conditionSearch 只支持手机号查询，不支持状态过滤
+// 因此需要在前端进行状态过滤
+const fetchOrderList = async () => {
+  loading.value = true
+  try {
+    let res
+
+    // 如果有手机号搜索，使用 conditionSearch 接口
+    if (searchForm.phone) {
+      const params = {
+        page: pagination.page,
+        pageSize: pagination.pageSize,
+        phone: searchForm.phone
+      }
+      res = await searchOrders(params)
+      if (res?.data) {
+        let orders = res.data.records || []
+
+        // 如果不是"全部订单"标签页，需要在前端过滤状态
+        if (activeTab.value !== 0) {
+          orders = orders.filter(item => convertStatusToNum(item.status) === activeTab.value)
+        }
+
+        tableData.value = orders.map(item => ({
+          ...item,
+          statusNum: convertStatusToNum(item.status)
+        }))
+        total.value = activeTab.value === 0 ? (res.data.total || 0) : orders.length
+      }
+    } else {
+      // 没有搜索条件时，使用 readAllOrders 获取所有订单（限制20条）
+      res = await readAllOrders()
+      if (res?.data) {
+        let orders = res.data || []
+
+        // 如果不是"全部订单"标签页，需要在前端过滤状态
+        if (activeTab.value !== 0) {
+          orders = orders.filter(item => convertStatusToNum(item.status) === activeTab.value)
+        }
+
+        tableData.value = orders.map(item => ({
+          ...item,
+          statusNum: convertStatusToNum(item.status)
+        }))
+        total.value = orders.length
+      }
+    }
+  } catch (error) {
+    console.error('获取订单列表失败:', error)
+    ElMessage.error('获取订单列表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 将后端状态字符串转换为数字
+const convertStatusToNum = (status) => {
+  const statusMap = {
+    'PENDING_PAYMENT': 1,
+    'PENDING_MERCHANT_ACCEPT': 2,
+    'MERCHANT_COOKING': 3,
+    'PENDING_RIDER_PICK': 4,
+    'RIDER_DELIVERING': 5,
+    'RIDER_ARRIVED': 6,
+    'COMPLETED': 7,
+    'CANCELLED': 8
+  }
+  return statusMap[status] || 0
+}
+
+// 标签页切换
+const handleTabChange = (value) => {
+  if (activeTab.value === value) return
+  activeTab.value = value
+  pagination.page = 1
+  searchForm.phone = '' // 只重置手机号，订单号已移除
+  fetchOrderList()
+  fetchOrderStatistics()
+}
+
+// 搜索
+const handleSearch = () => {
+  pagination.page = 1
+  fetchOrderList()
+}
+
+// 查看详情 - 适配后端新的返回结构（Map包含order和orderDetailList）
+const handleViewDetail = async (row) => {
+  try {
+    const res = await getOrderDetail(row.id)
+    if (res?.data) {
+      // 后端返回结构：{ order: {...}, orderDetailList: [...] }
+      const orderData = res.data.order || {}
+      const orderDetailList = res.data.orderDetailList || []
+      
+      // 合并订单主信息和明细列表到detailData中
+      detailData.value = {
+        ...orderData,
+        orderDetailList: orderDetailList,
+        statusNum: convertStatusToNum(orderData.status)
+      }
+      rowData.value = row
+      detailVisible.value = true
+    }
+  } catch (error) {
+    console.error('获取订单详情失败:', error)
+    ElMessage.error('获取订单详情失败')
+  }
+}
+
+// 接单
+const handleOrderAccept = async (row) => {
+  try {
+    await ElMessageBox.confirm('确认接单？', '提示', { type: 'warning' })
+    const res = await confirmOrder(row.id)
+    if (res?.data) {
+      ElMessage.success('接单成功')
+      detailVisible.value = false
+      fetchOrderList()
+      fetchOrderStatistics()
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('接单失败:', error)
+      ElMessage.error('接单失败')
+    }
+  }
+}
+
+// 派送
+const handleDelivery = async (row) => {
+  try {
+    await ElMessageBox.confirm('确认开始派送？', '提示', { type: 'warning' })
+    const res = await deliveryOrder(row.id)
+    if (res?.data) {
+      ElMessage.success('派送成功')
+      detailVisible.value = false
+      fetchOrderList()
+      fetchOrderStatistics()
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('派送失败:', error)
+      ElMessage.error('派送失败')
+    }
+  }
+}
+
+// 完成
+const handleComplete = async (row) => {
+  try {
+    await ElMessageBox.confirm('确认完成订单？', '提示', { type: 'success' })
+    const res = await completeOrder(row.id)
+    if (res?.data) {
+      ElMessage.success('订单已完成')
+      detailVisible.value = false
+      fetchOrderList()
+      fetchOrderStatistics()
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('操作失败:', error)
+      ElMessage.error('操作失败')
+    }
+  }
+}
+
+// 拒单
+const handleReject = (row) => {
+  cancelTitle.value = '拒绝'
+  cancelReasonList.value = [
+    { value: 1, label: '订单量较多，暂时无法接单' },
+    { value: 2, label: '菜品已销售完，暂时无法接单' },
+    { value: 3, label: '餐厅已打烊，暂时无法接单' },
+    { value: 0, label: '自定义原因' }
+  ]
+  currentOrderId.value = row.id
+  cancelReason.value = ''
+  customReason.value = ''
+  cancelVisible.value = true
+  detailVisible.value = false
+}
+
+// 取消订单
+const handleCancel = (row) => {
+  cancelTitle.value = '取消'
+  cancelReasonList.value = [
+    { value: 1, label: '订单量较多，暂时无法接单' },
+    { value: 2, label: '菜品已销售完，暂时无法接单' },
+    { value: 3, label: '骑手不足无法配送' },
+    { value: 4, label: '客户电话取消' },
+    { value: 0, label: '自定义原因' }
+  ]
+  currentOrderId.value = row.id
+  cancelReason.value = ''
+  customReason.value = ''
+  cancelVisible.value = true
+  detailVisible.value = false
+}
+
+// 确认取消/拒单
+// 注意：后端 cancel 接口不接受参数，取消原因由后端硬编码
+// 这是一个后端设计问题，建议后端修改接口接受取消原因参数
+const confirmCancel = async () => {
+  if (!cancelReason.value) {
+    ElMessage.error(`请选择${cancelTitle.value}原因`)
+    return
+  }
+  if (cancelReason.value === '自定义原因' && !customReason.value) {
+    ElMessage.error(`请输入${cancelTitle.value}原因`)
+    return
+  }
+
+  // 注意：后端接口不接受取消原因参数，这里的原因仅用于前端显示
+  const reason = cancelReason.value === '自定义原因' ? customReason.value : cancelReason.value
+  console.log(`${cancelTitle.value}原因:`, reason) // 输出原因到控制台，实际应传递给后端
+
+  try {
+    // 后端接口只接受订单ID，不接受取消原因
+    const res = await cancelOrder(currentOrderId.value)
+    if (res?.data) {
+      ElMessage.success('操作成功')
+      cancelVisible.value = false
+      fetchOrderList()
+      fetchOrderStatistics()
+    }
+  } catch (error) {
+    console.error('操作失败:', error)
+    ElMessage.error('操作失败')
+  }
+}
+
+// 初始化
+onMounted(() => {
+  // 如果路由有 status 参数，使用它
+  if (route.query.status) {
+    activeTab.value = Number(route.query.status)
+  }
+  fetchOrderStatistics()
+  fetchOrderList()
+})
+</script>
+
+<style lang="scss" scoped>
+/* 系统色板 - 严格只使用以下 9 种颜色及其透明度变体 */
+$sys-blue: #0A84FF;      // 系统蓝 - 主题主色
+$sys-red: #FF453A;       // 系统红 - 徽章/取消
+$sys-orange: #FF9F0A;    // 系统橙
+$sys-yellow: #FFD60A;    // 系统黄
+$sys-green: #30D158;     // 系统绿
+$sys-cyan: #40C8E0;      // 系统青
+$sys-indigo: #5E5CE6;    // 系统靛蓝 - 深色/文字
+$sys-purple: #BF5AF2;    // 系统紫
+$sys-pink: #FF375F;      // 系统粉
+
+/* 主题色变量（基于系统蓝） */
+$primary: $sys-blue;
+$primary-light: rgba(10, 132, 255, 0.1);   // 主色浅背景
+$primary-dark: $sys-indigo;                  // 主色深色
+
+.order-container {
+  padding: 20px;
+  /* 容器背景使用系统蓝极浅透明度 */
+  background: rgba(10, 132, 255, 0.04);
+  border-radius: 4px;
+  min-height: calc(100vh - 120px);
+}
+
+// 订单状态标签页
+.order-tabs {
+  display: flex;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  /* 标签页背景使用系统蓝浅透明度 */
+  background: rgba(10, 132, 255, 0.06);
+  padding: 4px;
+
+  .tab-item {
+    width: 120px;
+    height: 40px;
+    text-align: center;
+    line-height: 40px;
+    /* 文字使用系统靛蓝 */
+    color: $sys-indigo;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s;
+
+    &:hover {
+      /* hover 文字使用系统蓝 */
+      color: $primary;
+    }
+
+    .tab-badge {
+      :deep(.el-badge__content) {
+        /* 徽章使用系统红 */
+        background-color: $sys-red;
+      }
+    }
+
+    .tab-label {
+      font-size: 14px;
+    }
+  }
+
+  .active {
+    /* 激活态背景使用系统蓝 */
+    background-color: $primary;
+    color: $sys-yellow;
+    font-weight: bold;
+
+    &:hover {
+      color: $sys-yellow;
+    }
+  }
+}
+
+// 搜索栏
+.search-bar {
+  margin-bottom: 20px;
+
+  :deep(.el-form-item) {
+    margin-bottom: 0;
+  }
+
+  :deep(.el-input) {
+    width: 180px;
+  }
+
+  :deep(.el-date-editor) {
+    width: 280px !important;
+  }
+}
+
+// 表格
+.order-table {
+  margin-bottom: 20px;
+
+  .amount {
+    /* 金额使用系统靛蓝 */
+    color: $primary-dark;
+    font-weight: 500;
+  }
+}
+
+// 分页
+.pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+// 详情弹窗
+.order-detail-dialog {
+  :deep(.el-dialog__body) {
+    padding: 20px;
+  }
+
+  .detail-content {
+    .detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 20px;
+      /* 分隔线使用系统蓝半透明 */
+      border-bottom: 1px solid rgba(10, 132, 255, 0.2);
+
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+
+        .order-number {
+          font-size: 16px;
+          font-weight: bold;
+          /* 订单号使用系统靛蓝 */
+          color: $sys-indigo;
+        }
+      }
+
+      .order-time {
+        /* 时间使用系统靛蓝半透明 */
+        color: rgba(94, 92, 230, 0.7);
+      }
+    }
+
+    .user-section {
+      /* 用户区背景使用系统蓝浅透明度 */
+      background: rgba(10, 132, 255, 0.05);
+      padding: 20px;
+      margin-top: 20px;
+      border-radius: 4px;
+
+      .user-info-box {
+        display: flex;
+        flex-wrap: wrap;
+
+        .info-row {
+          flex: 0 0 50%;
+          margin-bottom: 12px;
+
+          .info-label {
+            /* 标签使用系统靛蓝半透明 */
+            color: rgba(94, 92, 230, 0.7);
+            margin-right: 10px;
+          }
+
+          .info-value {
+            /* 值使用系统靛蓝 */
+            color: $sys-indigo;
+          }
+        }
+      }
+
+      .user-remark {
+        margin-top: 15px;
+        padding: 12px 15px;
+        /* 备注背景使用系统黄浅透明度 */
+        background: rgba(255, 214, 10, 0.1);
+        /* 备注边框使用系统黄半透明 */
+        border: 1px solid rgba(255, 214, 10, 0.4);
+        border-radius: 4px;
+
+        .remark-title {
+          color: rgba(94, 92, 230, 0.7);
+          margin-right: 10px;
+        }
+
+        .remark-content {
+          color: $sys-indigo;
+        }
+      }
+
+      .cancel-remark {
+        /* 取消备注背景使用系统红浅透明度 */
+        background: rgba(255, 69, 58, 0.08);
+        /* 取消备注边框使用系统红半透明 */
+        border-color: rgba(255, 69, 58, 0.3);
+      }
+    }
+
+    .dish-section {
+      margin-top: 20px;
+
+      .section-title {
+        font-size: 15px;
+        font-weight: 500;
+        color: $sys-indigo;
+        margin-bottom: 15px;
+        padding-left: 10px;
+        /* 左侧装饰条使用系统蓝 */
+        border-left: 3px solid $primary;
+      }
+
+      .dish-list {
+        /* 菜品列表背景使用系统蓝浅透明度 */
+        background: rgba(10, 132, 255, 0.05);
+        padding: 15px;
+        border-radius: 4px;
+
+        .dish-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 8px 0;
+          /* 虚线分隔使用系统蓝半透明 */
+          border-bottom: 1px dashed rgba(10, 132, 255, 0.15);
+
+          &:last-child {
+            border-bottom: none;
+          }
+
+          .dish-info {
+            display: flex;
+            gap: 10px;
+
+            .dish-name {
+              color: $sys-indigo;
+            }
+
+            .dish-num {
+              /* 数量使用系统靛蓝半透明 */
+              color: rgba(94, 92, 230, 0.5);
+            }
+          }
+
+          .dish-price {
+            /* 菜品价格使用系统靛蓝 */
+            color: $primary-dark;
+          }
+        }
+      }
+
+      .dish-summary {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        padding: 12px 15px;
+        /* 汇总背景使用主色浅背景 */
+        background: $primary-light;
+        border-radius: 4px;
+        margin-top: 10px;
+
+        .summary-price {
+          /* 汇总价格使用系统靛蓝 */
+          color: $primary-dark;
+          font-weight: 500;
+          margin-left: 10px;
+        }
+      }
+    }
+
+    .amount-section {
+      margin-top: 20px;
+
+      .section-title {
+        font-size: 15px;
+        font-weight: 500;
+        color: $sys-indigo;
+        margin-bottom: 15px;
+        padding-left: 10px;
+        /* 左侧装饰条使用系统蓝 */
+        border-left: 3px solid $primary;
+      }
+
+      .amount-list {
+        /* 金额列表背景使用系统蓝浅透明度 */
+        background: rgba(10, 132, 255, 0.05);
+        padding: 15px;
+        border-radius: 4px;
+
+        .amount-item {
+          display: flex;
+          justify-content: space-between;
+          padding: 8px 0;
+          /* 金额项文字使用系统靛蓝半透明 */
+          color: rgba(94, 92, 230, 0.7);
+
+          &.total {
+            padding-top: 15px;
+            margin-top: 10px;
+            /* 总额顶部分隔线使用系统蓝半透明 */
+            border-top: 1px solid rgba(10, 132, 255, 0.2);
+            font-weight: 500;
+            font-size: 16px;
+            /* 总额文字使用系统靛蓝 */
+            color: $primary-dark;
+          }
+        }
+      }
+    }
+  }
+
+  .dialog-footer {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+
+    :deep(.el-checkbox) {
+      margin-right: auto;
+    }
+  }
+}
+</style>

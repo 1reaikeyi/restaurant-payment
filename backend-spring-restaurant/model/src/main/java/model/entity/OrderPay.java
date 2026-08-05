@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("order_pay")
+@TableName("pay")
 public class OrderPay implements Serializable {
 
     private static final long serialVersionUID = 1L;

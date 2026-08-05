@@ -1,4 +1,4 @@
-package start.controller.admin;
+package start.controller.user;
 
 import com.alipay.api.response.AlipayTradeRefundResponse;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -6,26 +6,31 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import common.enumOperation.OperationEnum;
 import common.result.Result;
+import jakarta.servlet.http.HttpServletResponse;
 import model.dto.OrderPageDTO;
-import model.entity.*;
+import model.entity.Order;
+import model.entity.OrderDetail;
+import model.entity.OrderPay;
 import model.entityenum.OrderStatusEnum;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import service.OrderDetailService;
-import service.PayService;
 import service.OrderService;
+import service.PayService;
 import start.aop.OperationLogging;
+import start.controller.支付宝.DTO.PayDTO;
 import start.controller.支付宝.DTO.RefundDTO;
 import start.controller.支付宝.service.ZhifubaoService;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @RestController
-@RequestMapping("/admin/order")
-public class AdminOrderController {
+@RequestMapping("/user/order")
+public class OrderController {
     @Autowired
     private OrderService orderService;
     @Autowired
@@ -54,30 +59,16 @@ public class AdminOrderController {
     }
     @OperationLogging(operation = OperationEnum.UPDATE)
     @PutMapping("cooking/{id}")
-    public Result update3(@PathVariable Long id) {
+    public Result update1(@PathVariable Long id) {
         Order order = orderService.lambdaQuery().eq(Order::getId, id).one();
         order.setStatus(OrderStatusEnum.MERCHANT_COOKING);
         return Result.success(order.getStatus());
     }
     @OperationLogging(operation = OperationEnum.UPDATE)
     @PutMapping("pending/{id}")
-    public Result update4(@PathVariable Long id) {
+    public Result update2(@PathVariable Long id) {
         Order order = orderService.lambdaQuery().eq(Order::getId, id).one();
         order.setStatus(OrderStatusEnum.PENDING_RIDER_PICK);
-        return Result.success(order.getStatus());
-    }
-    @OperationLogging(operation = OperationEnum.UPDATE)
-    @PutMapping("delivering/{id}")
-    public Result update5(@PathVariable Long id) {
-        Order order = orderService.lambdaQuery().eq(Order::getId, id).one();
-        order.setStatus(OrderStatusEnum.RIDER_DELIVERING);
-        return Result.success();
-    }
-    @OperationLogging(operation = OperationEnum.UPDATE)
-    @PutMapping("arrived/{id}")
-    public Result update6(@PathVariable Long id) {
-        Order order = orderService.lambdaQuery().eq(Order::getId, id).one();
-        order.setStatus(OrderStatusEnum.RIDER_ARRIVED);
         return Result.success(order.getStatus());
     }
     @OperationLogging(operation = OperationEnum.UPDATE)
@@ -116,5 +107,12 @@ public class AdminOrderController {
     }
     public AlipayTradeRefundResponse refund(RefundDTO refundDTO) throws Exception {
         return zhifubaoService.refund(refundDTO);
+    }
+    public void orderPay(PayDTO payDTO, HttpServletResponse response) throws Exception {
+        String form = zhifubaoService.createPagePayForm(payDTO);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.setContentType("text/html;charset=UTF-8");
+        response.getWriter().write(form);
+        response.getWriter().flush();
     }
 }

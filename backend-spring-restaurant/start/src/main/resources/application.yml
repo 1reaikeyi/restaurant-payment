@@ -59,6 +59,7 @@ mybatis-plus:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
     #开启驼峰命名
     map-underscore-to-camel-case: true
+  type-enums-package: model.entityenum
 # 日志配置
 logging:
   level:
