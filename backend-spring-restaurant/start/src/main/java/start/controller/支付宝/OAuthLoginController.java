@@ -25,7 +25,7 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/oauth")
-public class OAuthLogin {
+public class OAuthLoginController {
     // 新版沙箱授权域名：openauth-sandbox.dl.alipaydev.com
     private static final String AUTHORIZE_URL = "https://openauth-sandbox.dl.alipaydev.com/oauth2/publicAppAuthorize.htm";
 
@@ -43,44 +43,9 @@ public class OAuthLogin {
                 + "&scope=auth_user";
         // 302 重定向，浏览器自动跳转到支付宝授权页
         response.sendRedirect(authorizeUrl);
-//        System.out.println("authorizeUrl = " + authorizeUrl);
     }
 
     /** ② 回调：auth_code 换 access_token / user_id，并拉取用户资料 */
-//    @GetMapping("/callback")
-//    public Map<String, Object> callback(@RequestParam("auth_code") String authCode) throws Exception {
-//        AlipayClient client = alipayConfig.getAlipayClient();
-//        // 1. auth_code 换 token
-//        AlipaySystemOauthTokenRequest tokenReq = new AlipaySystemOauthTokenRequest();
-//        tokenReq.setCode(authCode);
-//        tokenReq.setGrantType("authorization_code");
-//        AlipaySystemOauthTokenResponse tokenResp = client.execute(tokenReq);
-//        if (!tokenResp.isSuccess()) {
-//            log.error("支付宝授权失败: {}", tokenResp.getMsg());
-//            throw new IllegalStateException("支付宝授权失败：" + tokenResp.getMsg());
-//        }
-//
-//        // 2. 用 access_token 拉用户资料（alipay.user.info.share，需沙箱应用已开通「获取会员信息」功能）
-//        AlipayUserInfoShareRequest userReq = new AlipayUserInfoShareRequest();
-//        userReq.putOtherTextParam("auth_token", tokenResp.getAccessToken());
-//        AlipayUserInfoShareResponse userResp = client.execute(userReq);
-//
-//        Map<String, Object> result = new HashMap<>();
-//        result.put("openId", tokenResp.getOpenId());
-//        result.put("accessToken", tokenResp.getAccessToken());
-//
-//        if (userResp.isSuccess()) {
-//            result.put("nickName", userResp.getNickName());      // 昵称
-//            result.put("avatar", userResp.getAvatar());          // 头像
-//            result.put("gender", userResp.getGender());          // 性别
-//            result.put("isCertified", userResp.getEmail());      //邮箱
-//        } else {
-//            // 拉取失败：打印错误码便于排查（常见原因：沙箱应用未开通「获取会员信息」功能）
-//            log.error("拉取支付宝用户资料失败 code={} subCode={} subMsg={} msg={}",
-//                    userResp.getCode(), userResp.getSubCode(), userResp.getSubMsg(), userResp.getMsg());
-//        }
-//        return result;
-//    }
     @GetMapping("/callback")
     public Map<String, Object> callback(@RequestParam("auth_code") String authCode) throws AlipayApiException {
         if (authCode == null || authCode.isBlank()) {

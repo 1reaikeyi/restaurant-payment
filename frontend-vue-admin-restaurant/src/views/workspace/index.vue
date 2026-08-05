@@ -314,14 +314,26 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-/* 黄色主题变量 */
-$yellow-primary: #e6a23c;
-$yellow-light: #fdf6ec;
-$yellow-dark: #d49133;
+/* 系统色板 - 严格只使用以下 9 种颜色及其透明度变体 */
+$sys-blue: #0A84FF;      // 系统蓝 - 主题主色
+$sys-red: #FF453A;       // 系统红
+$sys-orange: #FF9F0A;    // 系统橙
+$sys-yellow: #FFD60A;    // 系统黄
+$sys-green: #30D158;     // 系统绿
+$sys-cyan: #40C8E0;      // 系统青
+$sys-indigo: #5E5CE6;    // 系统靛蓝 - 深色/文字
+$sys-purple: #BF5AF2;    // 系统紫
+$sys-pink: #FF375F;      // 系统粉
+
+/* 主题色变量（基于系统蓝） */
+$primary: $sys-blue;
+$primary-light: rgba(10, 132, 255, 0.1);   // 主色浅背景
+$primary-dark: $sys-indigo;                  // 主色深色
 
 .dashboard-container {
   margin: 20px;
-  background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);
+  /* 仪表盘渐变背景使用系统蓝透明度 */
+  background: linear-gradient(135deg, rgba(10, 132, 255, 0.08) 0%, rgba(10, 132, 255, 0.15) 100%);
   min-height: calc(100vh - 100px);
   padding: 20px;
   border-radius: 12px;
@@ -334,13 +346,15 @@ $yellow-dark: #d49133;
   .page-title {
     font-size: 24px;
     font-weight: 600;
-    color: #303133;
+    /* 标题使用系统靛蓝 */
+    color: $sys-indigo;
     margin: 0;
   }
 
   .page-desc {
     font-size: 14px;
-    color: #909399;
+    /* 描述使用系统靛蓝半透明 */
+    color: rgba(94, 92, 230, 0.55);
     margin: 8px 0 0 0;
   }
 }
@@ -358,19 +372,22 @@ $yellow-dark: #d49133;
 
 .overview-card {
   flex: 1;
-  background: #fff;
+  /* 卡片背景使用系统蓝极浅透明度 */
+  background: rgba(10, 132, 255, 0.05);
   border-radius: 12px;
   padding: 24px;
   display: flex;
   align-items: center;
   gap: 20px;
-  box-shadow: 0 4px 16px rgba(230, 162, 60, 0.15);
-  border-left: 4px solid $yellow-primary;
+  /* 阴影使用系统蓝透明度 */
+  box-shadow: 0 4px 16px rgba(10, 132, 255, 0.15);
+  /* 左侧装饰条使用系统蓝 */
+  border-left: 4px solid $primary;
   transition: transform 0.3s, box-shadow 0.3s;
 
   &:hover {
     transform: translateY(-4px);
-    box-shadow: 0 6px 24px rgba(230, 162, 60, 0.25);
+    box-shadow: 0 6px 24px rgba(10, 132, 255, 0.25);
   }
 }
 
@@ -385,8 +402,9 @@ $yellow-dark: #d49133;
   flex-shrink: 0;
 
   &.yellow {
-    background: linear-gradient(135deg, $yellow-primary 0%, #ebb563 100%);
-    color: #fff;
+    /* 图标背景渐变使用系统黄到系统橙 */
+    background: linear-gradient(135deg, $sys-yellow 0%, $sys-orange 100%);
+    color: $sys-indigo;
   }
 }
 
@@ -398,7 +416,7 @@ $yellow-dark: #d49133;
 .card-title {
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: $sys-indigo;
   margin: 0 0 12px 0;
 }
 
@@ -419,38 +437,42 @@ $yellow-dark: #d49133;
   font-size: 24px;
   font-weight: 700;
 
-  &.green { color: #67c23a; }
-  &.red { color: #f56c6c; }
-  &.blue { color: #409eff; }
-  &.orange { color: $yellow-primary; }
+  /* 数值颜色使用色板 */
+  &.green { color: $sys-green; }
+  &.red { color: $sys-red; }
+  &.blue { color: $sys-blue; }
+  &.orange { color: $primary; }
 }
 
 .stat-label {
   font-size: 12px;
-  color: #909399;
+  /* 标签使用系统靛蓝半透明 */
+  color: rgba(94, 92, 230, 0.55);
   margin-top: 4px;
 }
 
 .stat-divider {
   width: 1px;
   height: 40px;
-  background: #ebf0f6;
+  /* 分隔线使用系统蓝半透明 */
+  background: rgba(10, 132, 255, 0.2);
 }
 
 .card-total {
   font-size: 13px;
-  color: #909399;
+  color: rgba(94, 92, 230, 0.55);
   margin: 8px 0 0 0;
 }
 
 /* 今日订单区域 */
 .order-view-section {
-  background: #fff;
+  background: rgba(10, 132, 255, 0.05);
   border-radius: 12px;
   padding: 24px;
   margin-bottom: 20px;
-  box-shadow: 0 4px 16px rgba(230, 162, 60, 0.15);
-  border-top: 4px solid $yellow-primary;
+  box-shadow: 0 4px 16px rgba(10, 132, 255, 0.15);
+  /* 顶部装饰条使用系统蓝 */
+  border-top: 4px solid $primary;
 }
 
 .section-header {
@@ -463,19 +485,20 @@ $yellow-dark: #d49133;
 .section-title {
   font-size: 18px;
   font-weight: 600;
-  color: #303133;
+  color: $sys-indigo;
   margin: 0;
 }
 
 .section-date {
   font-size: 14px;
-  color: #909399;
+  color: rgba(94, 92, 230, 0.55);
 }
 
 .section-subtitle {
   font-size: 13px;
-  color: #909399;
-  background: #f5f7fa;
+  color: rgba(94, 92, 230, 0.55);
+  /* 副标题背景使用系统蓝浅透明度 */
+  background: rgba(10, 132, 255, 0.08);
   padding: 4px 12px;
   border-radius: 12px;
 }
@@ -484,7 +507,8 @@ $yellow-dark: #d49133;
   display: flex;
   justify-content: space-around;
   padding-bottom: 20px;
-  border-bottom: 1px solid #f0f0f0;
+  /* 底部分隔线使用系统蓝半透明 */
+  border-bottom: 1px solid rgba(10, 132, 255, 0.1);
   margin-bottom: 20px;
 
   @media (max-width: 600px) {
@@ -509,8 +533,9 @@ $yellow-dark: #d49133;
   font-size: 22px;
 
   &.yellow-bg {
-    background: $yellow-light;
-    color: $yellow-primary;
+    /* 图标背景使用主色浅背景 */
+    background: $primary-light;
+    color: $primary;
   }
 }
 
@@ -522,17 +547,18 @@ $yellow-dark: #d49133;
 .stat-number {
   font-size: 20px;
   font-weight: 700;
-  color: #303133;
+  color: $sys-indigo;
 
   &.highlight {
-    color: $yellow-primary;
+    /* 高亮数值使用系统蓝 */
+    color: $primary;
     font-size: 24px;
   }
 }
 
 .stat-name {
   font-size: 12px;
-  color: #909399;
+  color: rgba(94, 92, 230, 0.55);
   margin-top: 4px;
 }
 
@@ -552,11 +578,11 @@ $yellow-dark: #d49133;
 }
 
 .stats-card {
-  background: #fff;
+  background: rgba(10, 132, 255, 0.05);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 4px 16px rgba(230, 162, 60, 0.15);
-  border-top: 4px solid $yellow-primary;
+  box-shadow: 0 4px 16px rgba(10, 132, 255, 0.15);
+  border-top: 4px solid $primary;
 }
 
 .ranking {
@@ -567,7 +593,8 @@ $yellow-dark: #d49133;
   display: flex;
   align-items: center;
   padding: 12px 0;
-  border-bottom: 1px solid #f5f7fa;
+  /* 底部分隔线使用系统蓝浅透明度 */
+  border-bottom: 1px solid rgba(10, 132, 255, 0.08);
 
   &:last-child {
     border-bottom: none;
@@ -583,23 +610,27 @@ $yellow-dark: #d49133;
   justify-content: center;
   font-size: 14px;
   font-weight: 600;
-  background: #f5f7fa;
-  color: #909399;
+  /* 默认排名背景使用系统蓝浅透明度 */
+  background: rgba(10, 132, 255, 0.08);
+  color: rgba(94, 92, 230, 0.55);
   margin-right: 12px;
 
+  /* 第一名：系统黄到系统橙渐变 */
   &.rank-1 {
-    background: linear-gradient(135deg, #ffd700 0%, #ffb700 100%);
-    color: #fff;
+    background: linear-gradient(135deg, $sys-yellow 0%, $sys-orange 100%);
+    color: $sys-indigo;
   }
 
+  /* 第二名：系统青到系统靛蓝渐变 */
   &.rank-2 {
-    background: linear-gradient(135deg, #c0c0c0 0%, #a0a0a0 100%);
-    color: #fff;
+    background: linear-gradient(135deg, $sys-cyan 0%, $sys-indigo 100%);
+    color: $sys-yellow;
   }
 
+  /* 第三名：系统橙到系统紫渐变 */
   &.rank-3 {
-    background: linear-gradient(135deg, #cd7f32 0%, #b87333 100%);
-    color: #fff;
+    background: linear-gradient(135deg, $sys-orange 0%, $sys-purple 100%);
+    color: $sys-yellow;
   }
 }
 
@@ -610,7 +641,7 @@ $yellow-dark: #d49133;
 
 .ranking-name {
   font-size: 14px;
-  color: #303133;
+  color: $sys-indigo;
   display: block;
   margin-bottom: 6px;
   overflow: hidden;
@@ -620,7 +651,8 @@ $yellow-dark: #d49133;
 
 .ranking-progress {
   height: 6px;
-  background: #f0f0f0;
+  /* 进度条背景使用系统蓝浅透明度 */
+  background: rgba(10, 132, 255, 0.1);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -630,15 +662,17 @@ $yellow-dark: #d49133;
   border-radius: 3px;
   transition: width 0.5s ease;
 
+  /* 进度条使用系统黄到系统蓝渐变 */
   &.yellow {
-    background: linear-gradient(90deg, #fcd34d 0%, $yellow-primary 100%);
+    background: linear-gradient(90deg, $sys-yellow 0%, $primary 100%);
   }
 }
 
 .ranking-sales {
   font-size: 14px;
   font-weight: 600;
-  color: $yellow-primary;
+  /* 销量使用系统蓝 */
+  color: $primary;
   margin-left: 16px;
   min-width: 50px;
   text-align: right;
@@ -650,11 +684,11 @@ $yellow-dark: #d49133;
 
 /* 订单区间统计 */
 .order-list-section {
-  background: #fff;
+  background: rgba(10, 132, 255, 0.05);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 4px 16px rgba(230, 162, 60, 0.15);
-  border-top: 4px solid $yellow-primary;
+  box-shadow: 0 4px 16px rgba(10, 132, 255, 0.15);
+  border-top: 4px solid $primary;
 }
 
 .range-select {
@@ -670,7 +704,8 @@ $yellow-dark: #d49133;
 .stat-box {
   flex: 1;
   min-width: 200px;
-  background: $yellow-light;
+  /* 统计盒背景使用主色浅背景 */
+  background: $primary-light;
   border-radius: 12px;
   padding: 20px;
   display: flex;
@@ -680,7 +715,7 @@ $yellow-dark: #d49133;
 
   &:hover {
     transform: translateY(-4px);
-    box-shadow: 0 4px 12px rgba(230, 162, 60, 0.2);
+    box-shadow: 0 4px 12px rgba(10, 132, 255, 0.2);
   }
 }
 
@@ -693,19 +728,22 @@ $yellow-dark: #d49133;
   justify-content: center;
   font-size: 22px;
 
+  /* 蓝色图标渐变：系统蓝到系统靛蓝 */
   &.blue-bg {
-    background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
-    color: #fff;
+    background: linear-gradient(135deg, $sys-blue 0%, $sys-indigo 100%);
+    color: $sys-yellow;
   }
 
+  /* 绿色图标渐变：系统绿到系统青 */
   &.green-bg {
-    background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
-    color: #fff;
+    background: linear-gradient(135deg, $sys-green 0%, $sys-cyan 100%);
+    color: $sys-yellow;
   }
 
+  /* 橙色图标渐变：系统橙到系统红 */
   &.orange-bg {
-    background: linear-gradient(135deg, #fb923c 0%, #f97316 100%);
-    color: #fff;
+    background: linear-gradient(135deg, $sys-orange 0%, $sys-red 100%);
+    color: $sys-yellow;
   }
 }
 
@@ -717,12 +755,12 @@ $yellow-dark: #d49133;
 .stat-box-value {
   font-size: 24px;
   font-weight: 700;
-  color: #303133;
+  color: $sys-indigo;
 }
 
 .stat-box-label {
   font-size: 12px;
-  color: #909399;
+  color: rgba(94, 92, 230, 0.55);
   margin-top: 4px;
 }
 </style>

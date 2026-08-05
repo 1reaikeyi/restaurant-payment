@@ -778,14 +778,26 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-// 黄色主题变量
-$yellow-primary: #e6a23c;
-$yellow-light: #fdf6ec;
-$yellow-dark: #d49133;
+/* 系统色板 - 严格只使用以下 9 种颜色及其透明度变体 */
+$sys-blue: #0A84FF;      // 系统蓝 - 主题主色
+$sys-red: #FF453A;       // 系统红 - 徽章/取消
+$sys-orange: #FF9F0A;    // 系统橙
+$sys-yellow: #FFD60A;    // 系统黄
+$sys-green: #30D158;     // 系统绿
+$sys-cyan: #40C8E0;      // 系统青
+$sys-indigo: #5E5CE6;    // 系统靛蓝 - 深色/文字
+$sys-purple: #BF5AF2;    // 系统紫
+$sys-pink: #FF375F;      // 系统粉
+
+/* 主题色变量（基于系统蓝） */
+$primary: $sys-blue;
+$primary-light: rgba(10, 132, 255, 0.1);   // 主色浅背景
+$primary-dark: $sys-indigo;                  // 主色深色
 
 .order-container {
   padding: 20px;
-  background: #fff;
+  /* 容器背景使用系统蓝极浅透明度 */
+  background: rgba(10, 132, 255, 0.04);
   border-radius: 4px;
   min-height: calc(100vh - 120px);
 }
@@ -795,7 +807,8 @@ $yellow-dark: #d49133;
   display: flex;
   border-radius: 4px;
   margin-bottom: 20px;
-  background: #f5f5f5;
+  /* 标签页背景使用系统蓝浅透明度 */
+  background: rgba(10, 132, 255, 0.06);
   padding: 4px;
 
   .tab-item {
@@ -803,18 +816,21 @@ $yellow-dark: #d49133;
     height: 40px;
     text-align: center;
     line-height: 40px;
-    color: #333;
+    /* 文字使用系统靛蓝 */
+    color: $sys-indigo;
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.3s;
 
     &:hover {
-      color: $yellow-primary;
+      /* hover 文字使用系统蓝 */
+      color: $primary;
     }
 
     .tab-badge {
       :deep(.el-badge__content) {
-        background-color: #f56c6c;
+        /* 徽章使用系统红 */
+        background-color: $sys-red;
       }
     }
 
@@ -824,12 +840,13 @@ $yellow-dark: #d49133;
   }
 
   .active {
-    background-color: $yellow-primary;
-    color: #fff;
+    /* 激活态背景使用系统蓝 */
+    background-color: $primary;
+    color: $sys-yellow;
     font-weight: bold;
 
     &:hover {
-      color: #fff;
+      color: $sys-yellow;
     }
   }
 }
@@ -856,7 +873,8 @@ $yellow-dark: #d49133;
   margin-bottom: 20px;
 
   .amount {
-    color: $yellow-dark;
+    /* 金额使用系统靛蓝 */
+    color: $primary-dark;
     font-weight: 500;
   }
 }
@@ -880,7 +898,8 @@ $yellow-dark: #d49133;
       justify-content: space-between;
       align-items: center;
       padding-bottom: 20px;
-      border-bottom: 1px solid #e7e6e6;
+      /* 分隔线使用系统蓝半透明 */
+      border-bottom: 1px solid rgba(10, 132, 255, 0.2);
 
       .header-left {
         display: flex;
@@ -890,17 +909,20 @@ $yellow-dark: #d49133;
         .order-number {
           font-size: 16px;
           font-weight: bold;
-          color: #333;
+          /* 订单号使用系统靛蓝 */
+          color: $sys-indigo;
         }
       }
 
       .order-time {
-        color: #666;
+        /* 时间使用系统靛蓝半透明 */
+        color: rgba(94, 92, 230, 0.7);
       }
     }
 
     .user-section {
-      background: #fbfbfa;
+      /* 用户区背景使用系统蓝浅透明度 */
+      background: rgba(10, 132, 255, 0.05);
       padding: 20px;
       margin-top: 20px;
       border-radius: 4px;
@@ -914,12 +936,14 @@ $yellow-dark: #d49133;
           margin-bottom: 12px;
 
           .info-label {
-            color: #666;
+            /* 标签使用系统靛蓝半透明 */
+            color: rgba(94, 92, 230, 0.7);
             margin-right: 10px;
           }
 
           .info-value {
-            color: #333;
+            /* 值使用系统靛蓝 */
+            color: $sys-indigo;
           }
         }
       }
@@ -927,23 +951,27 @@ $yellow-dark: #d49133;
       .user-remark {
         margin-top: 15px;
         padding: 12px 15px;
-        background: #fffbf0;
-        border: 1px solid #fbe396;
+        /* 备注背景使用系统黄浅透明度 */
+        background: rgba(255, 214, 10, 0.1);
+        /* 备注边框使用系统黄半透明 */
+        border: 1px solid rgba(255, 214, 10, 0.4);
         border-radius: 4px;
 
         .remark-title {
-          color: #666;
+          color: rgba(94, 92, 230, 0.7);
           margin-right: 10px;
         }
 
         .remark-content {
-          color: #333;
+          color: $sys-indigo;
         }
       }
 
       .cancel-remark {
-        background: #fef0f0;
-        border-color: #fde2e2;
+        /* 取消备注背景使用系统红浅透明度 */
+        background: rgba(255, 69, 58, 0.08);
+        /* 取消备注边框使用系统红半透明 */
+        border-color: rgba(255, 69, 58, 0.3);
       }
     }
 
@@ -953,14 +981,16 @@ $yellow-dark: #d49133;
       .section-title {
         font-size: 15px;
         font-weight: 500;
-        color: #333;
+        color: $sys-indigo;
         margin-bottom: 15px;
         padding-left: 10px;
-        border-left: 3px solid $yellow-primary;
+        /* 左侧装饰条使用系统蓝 */
+        border-left: 3px solid $primary;
       }
 
       .dish-list {
-        background: #fafafa;
+        /* 菜品列表背景使用系统蓝浅透明度 */
+        background: rgba(10, 132, 255, 0.05);
         padding: 15px;
         border-radius: 4px;
 
@@ -969,7 +999,8 @@ $yellow-dark: #d49133;
           justify-content: space-between;
           align-items: center;
           padding: 8px 0;
-          border-bottom: 1px dashed #eee;
+          /* 虚线分隔使用系统蓝半透明 */
+          border-bottom: 1px dashed rgba(10, 132, 255, 0.15);
 
           &:last-child {
             border-bottom: none;
@@ -980,16 +1011,18 @@ $yellow-dark: #d49133;
             gap: 10px;
 
             .dish-name {
-              color: #333;
+              color: $sys-indigo;
             }
 
             .dish-num {
-              color: #999;
+              /* 数量使用系统靛蓝半透明 */
+              color: rgba(94, 92, 230, 0.5);
             }
           }
 
           .dish-price {
-            color: $yellow-dark;
+            /* 菜品价格使用系统靛蓝 */
+            color: $primary-dark;
           }
         }
       }
@@ -999,12 +1032,14 @@ $yellow-dark: #d49133;
         justify-content: flex-end;
         align-items: center;
         padding: 12px 15px;
-        background: $yellow-light;
+        /* 汇总背景使用主色浅背景 */
+        background: $primary-light;
         border-radius: 4px;
         margin-top: 10px;
 
         .summary-price {
-          color: $yellow-dark;
+          /* 汇总价格使用系统靛蓝 */
+          color: $primary-dark;
           font-weight: 500;
           margin-left: 10px;
         }
@@ -1017,14 +1052,16 @@ $yellow-dark: #d49133;
       .section-title {
         font-size: 15px;
         font-weight: 500;
-        color: #333;
+        color: $sys-indigo;
         margin-bottom: 15px;
         padding-left: 10px;
-        border-left: 3px solid $yellow-primary;
+        /* 左侧装饰条使用系统蓝 */
+        border-left: 3px solid $primary;
       }
 
       .amount-list {
-        background: #fafafa;
+        /* 金额列表背景使用系统蓝浅透明度 */
+        background: rgba(10, 132, 255, 0.05);
         padding: 15px;
         border-radius: 4px;
 
@@ -1032,15 +1069,18 @@ $yellow-dark: #d49133;
           display: flex;
           justify-content: space-between;
           padding: 8px 0;
-          color: #666;
+          /* 金额项文字使用系统靛蓝半透明 */
+          color: rgba(94, 92, 230, 0.7);
 
           &.total {
             padding-top: 15px;
             margin-top: 10px;
-            border-top: 1px solid #ddd;
+            /* 总额顶部分隔线使用系统蓝半透明 */
+            border-top: 1px solid rgba(10, 132, 255, 0.2);
             font-weight: 500;
             font-size: 16px;
-            color: $yellow-dark;
+            /* 总额文字使用系统靛蓝 */
+            color: $primary-dark;
           }
         }
       }

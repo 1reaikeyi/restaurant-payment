@@ -3,6 +3,7 @@ package start.controller.user;
 import common.enumOperation.OperationEnum;
 import common.result.Result;
 import model.entity.Dish;
+import model.entity.Plan;
 import model.entity.RestaurantCategory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheConfig;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import service.DishDetailService;
 import service.DishService;
+import service.PlanService;
 import service.RestaurantCategoryService;
 import start.aop.OperationLogging;
 
@@ -26,6 +28,8 @@ public class CategoryController {
     private RestaurantCategoryService restaurantCategoryService;
     @Autowired
     private DishService dishService;
+    @Autowired
+    private PlanService planService;
 
     @OperationLogging(operation = OperationEnum.READ)
     @Cacheable(key = "#id")
@@ -40,12 +44,18 @@ public class CategoryController {
         List<RestaurantCategory> restaurantCategoryList = restaurantCategoryService.lambdaQuery().eq(RestaurantCategory::getType, type).list();
         return Result.success(restaurantCategoryList);
     }
-    //category 联动 dish
     @OperationLogging(operation = OperationEnum.READ)
     @Cacheable(key = "#categoryId")
-    @GetMapping("/getDish")
+    @GetMapping("/of/dish")
     public Result readDish(@RequestParam("id") Long categoryId) {
         List<Dish> dishList = dishService.lambdaQuery().eq(Dish::getCategoryId,categoryId).list();
         return Result.success(dishList);
+    }
+    @OperationLogging(operation = OperationEnum.READ)
+    @Cacheable(key = "#categoryId")
+    @GetMapping("of/plan")
+    public Result getPlan(@RequestParam("id") Long categoryId) {
+        List<Plan> planList = planService.lambdaQuery().in(Plan::getCategoryId, categoryId).list();
+        return Result.success(planList);
     }
 }

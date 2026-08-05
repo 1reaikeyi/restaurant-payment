@@ -10,7 +10,7 @@ import {
   CaretBottom
 } from '@element-plus/icons-vue'
 // 导入默认头像图片
-import avatar from '@/assets/login/a.png'
+import avatar from '@/assets/login/avatar.png'
 // 导入员工状态管理
 import { useEmployeeStore } from '@/stores/index.js'
 // 导入 Vue 生命周期钩子
@@ -39,23 +39,19 @@ const handleCommand = async (key) => {
       
       <!-- 侧边栏菜单 -->
       <el-menu active-text-color="#ffd04b" background-color="#232323" :default-active="$route.path" text-color="#fff" router>
-        <!-- 点餐目录 -->
-        <el-menu-item index="/category"><el-icon><Grid /></el-icon><span>点餐目录</span></el-menu-item>
-        <!-- 员工管理 -->
-        <el-menu-item index="/employee"><el-icon><User /></el-icon><span>员工管理</span></el-menu-item>
-        <!-- 工作台 -->
-        <el-menu-item index="/workspace"><el-icon><HomeFilled /></el-icon><span>工作台</span></el-menu-item>
 
-        <!-- 菜品管理 -->
-        <el-menu-item index="/dish"><el-icon><KnifeFork /></el-icon><span>菜品管理</span></el-menu-item>
-        
-        <!-- 套餐管理 -->
-        <el-menu-item index="/setmeal"><el-icon><Present /></el-icon><span>套餐管理</span></el-menu-item>
-        
-        <!-- 订单管理 -->
-        <el-menu-item index="/order"><el-icon><ShoppingCart /></el-icon><span>订单管理</span></el-menu-item>
-        
-        <!-- 店铺管理 -->
+        <el-menu-item index="/category"><el-icon><Grid /></el-icon><span>菜单</span></el-menu-item>
+
+        <el-menu-item index="/employee"><el-icon><User /></el-icon><span>菜品管理</span></el-menu-item>
+
+        <el-menu-item index="/workspace"><el-icon><HomeFilled /></el-icon><span>套餐管理</span></el-menu-item>
+
+        <el-menu-item index="/dish"><el-icon><KnifeFork /></el-icon><span>订单管理</span></el-menu-item>
+
+        <el-menu-item index="/setmeal"><el-icon><Present /></el-icon><span>工作台</span></el-menu-item>
+
+        <el-menu-item index="/order"><el-icon><ShoppingCart /></el-icon><span>员工管理</span></el-menu-item>
+
         <el-menu-item index="/shop"><el-icon><Shop /></el-icon><span>店铺管理</span></el-menu-item>
       </el-menu>
     </el-aside>
@@ -63,7 +59,7 @@ const handleCommand = async (key) => {
     <el-container>
       <el-header>
         <!-- 头部标题 -->
-        <div>外卖支付系统 ==> 当前员工昵称: <strong>{{ employeeStore.user?.userName || '员工' }}</strong></div>
+        <div>小餐馆==> 当前员工昵称: <strong>{{ employeeStore.user?.userName || '员工' }}</strong></div>
         
         <!-- 用户下拉菜单 -->
         <el-dropdown placement="bottom-end" @command="handleCommand">
@@ -89,7 +85,7 @@ const handleCommand = async (key) => {
       </el-main>
       
       <!-- 底部 -->
-      <el-footer>美团外卖</el-footer>
+      <el-footer>餐馆</el-footer>
     </el-container>
   </el-container>
 </template>
@@ -107,7 +103,7 @@ const handleCommand = async (key) => {
     background-color: #232323;
     &__logo {
       height: 120px;
-      background: url('@/assets/login/c.png') no-repeat center / 200px auto;
+      background: url('@/assets/login/layout.png') no-repeat center / 190px auto;
     }
     .el-menu {
       border-right: none;

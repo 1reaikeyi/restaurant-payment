@@ -211,21 +211,29 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
+/* 系统色板 - 严格只使用以下 9 种颜色及其透明度变体 */
+$sys-blue: #0A84FF;      // 系统蓝 - 主题主色
+$sys-indigo: #5E5CE6;    // 系统靛蓝 - 深色/文字
+
 .add-employee-container {
   padding: 20px;
-  background: #fff;
+  /* 容器背景使用系统蓝极浅透明度 */
+  background: rgba(10, 132, 255, 0.04);
   border-radius: 4px;
 }
 
 .page-header {
   margin-bottom: 20px;
   padding-bottom: 20px;
-  border-bottom: 1px solid #ebeef5;
+  /* 分隔线使用系统蓝半透明 */
+  border-bottom: 1px solid rgba(10, 132, 255, 0.2);
 }
 
 .page-title {
   font-size: 16px;
   font-weight: 500;
+  /* 标题文字使用系统靛蓝 */
+  color: $sys-indigo;
 }
 
 .form-container {
@@ -242,6 +250,7 @@ onMounted(() => {
 .form-buttons {
   margin-top: 30px;
   padding-top: 20px;
-  border-top: 1px solid #ebeef5;
+  /* 顶部分隔线使用系统蓝半透明 */
+  border-top: 1px solid rgba(10, 132, 255, 0.2);
 }
 </style>

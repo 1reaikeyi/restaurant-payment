@@ -16,10 +16,13 @@ import model.entity.PlanDetail;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import service.DishDetailService;
+import service.DishService;
 import service.PlanDetailService;
 import service.PlanService;
 import start.aop.OperationLogging;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -29,6 +32,8 @@ public class AdminPlanController {
     private PlanService planService;
     @Autowired
     private PlanDetailService planDetailService;
+    @Autowired
+    private DishService dishService;
     @OperationLogging(operation = OperationEnum.CREATE)
     @Transactional(rollbackFor = Exception.class)
     @PostMapping
@@ -78,5 +83,20 @@ public class AdminPlanController {
     public Result delete(@RequestParam List<Long> ids) {
         planService.deleteCache(ids);
         return Result.success(OperationEnum.DELETE+"--"+ids);
+    }
+    @OperationLogging(operation = OperationEnum.READ)
+    @GetMapping("of/dish")
+    public Result getDish(@RequestParam Long id) {
+        List<PlanDetail> planDetailList = planDetailService.lambdaQuery().eq(PlanDetail::getPlanId, id).list();
+        List<List<Dish>> dishes = new ArrayList<>();
+        for (PlanDetail planDetail1 : planDetailList) {
+            Integer[] dishId = planService.ofDishId(planDetail1);
+            if (dishId == null && dishId.length < 0) {
+                continue;
+            }
+            List<Dish> dishList = dishService.lambdaQuery().in(Dish::getId, dishId).list();
+            dishes.add(dishList);
+        }
+        return Result.success(dishes);
     }
 }

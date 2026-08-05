@@ -433,26 +433,41 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-/* 黄色主题变量 */
-$yellow-primary: #e6a23c;
-$yellow-light: #fdf6ec;
-$yellow-dark: #d49133;
+/* 系统色板 - 严格只使用以下 9 种颜色及其透明度变体 */
+$sys-blue: #0A84FF;      // 系统蓝 - 主题主色
+$sys-red: #FF453A;       // 系统红
+$sys-orange: #FF9F0A;    // 系统橙
+$sys-yellow: #FFD60A;    // 系统黄
+$sys-green: #30D158;     // 系统绿
+$sys-cyan: #40C8E0;      // 系统青
+$sys-indigo: #5E5CE6;    // 系统靛蓝 - 深色/文字
+$sys-purple: #BF5AF2;    // 系统紫
+$sys-pink: #FF375F;      // 系统粉
+
+/* 主题色变量（基于系统蓝） */
+$primary: $sys-blue;
+$primary-light: rgba(10, 132, 255, 0.1);   // 主色浅背景
+$primary-dark: $sys-indigo;                  // 主色深色
 
 .add-dish-container {
   padding: 20px;
-  background: #fff;
+  /* 容器背景使用系统蓝极浅透明度 */
+  background: rgba(10, 132, 255, 0.04);
   border-radius: 4px;
 }
 
 .page-header {
   margin-bottom: 20px;
   padding-bottom: 20px;
-  border-bottom: 1px solid #ebeef5;
+  /* 分隔线使用系统蓝半透明 */
+  border-bottom: 1px solid rgba(10, 132, 255, 0.2);
 }
 
 .page-title {
   font-size: 16px;
   font-weight: 500;
+  /* 标题文字使用系统靛蓝 */
+  color: $sys-indigo;
 }
 
 .form-container {
@@ -476,16 +491,19 @@ $yellow-dark: #d49133;
 }
 
 .flavor-content {
-  border: 1px solid #dcdfe6;
+  /* 边框使用系统蓝半透明 */
+  border: 1px solid rgba(10, 132, 255, 0.2);
   border-radius: 4px;
   padding: 15px;
-  background: #fafafa;
+  /* 背景使用系统蓝浅透明度 */
+  background: rgba(10, 132, 255, 0.05);
 }
 
 .flavor-header {
   display: flex;
   margin-bottom: 10px;
-  color: #606266;
+  /* 文字使用系统靛蓝 */
+  color: $sys-indigo;
   font-size: 14px;
 
   .flavor-title {
@@ -517,9 +535,11 @@ $yellow-dark: #d49133;
     flex-wrap: wrap;
     gap: 8px;
     padding: 8px;
-    border: 1px solid #dcdfe6;
+    /* 边框使用系统蓝半透明 */
+    border: 1px solid rgba(10, 132, 255, 0.2);
     border-radius: 4px;
-    background: #fff;
+    /* 背景使用系统蓝极浅透明度 */
+    background: rgba(10, 132, 255, 0.04);
     min-height: 40px;
 
     .el-tag {
@@ -544,7 +564,8 @@ $yellow-dark: #d49133;
 /* 图片上传样式 */
 .image-uploader {
   :deep(.el-upload) {
-    border: 1px dashed #d9d9d9;
+    /* 虚线边框使用系统蓝半透明 */
+    border: 1px dashed rgba(10, 132, 255, 0.3);
     border-radius: 6px;
     cursor: pointer;
     position: relative;
@@ -552,7 +573,8 @@ $yellow-dark: #d49133;
     transition: border-color 0.3s;
 
     &:hover {
-      border-color: $yellow-primary;
+      /* hover 边框使用系统蓝 */
+      border-color: $primary;
     }
   }
 
@@ -564,7 +586,8 @@ $yellow-dark: #d49133;
 
   .image-uploader-icon {
     font-size: 28px;
-    color: #8c939d;
+    /* 图标颜色使用系统靛蓝半透明 */
+    color: rgba(94, 92, 230, 0.5);
     width: 200px;
     height: 160px;
     line-height: 160px;
@@ -575,33 +598,36 @@ $yellow-dark: #d49133;
 .upload-tip {
   margin-top: 10px;
   font-size: 12px;
-  color: #909399;
+  /* 提示文字使用系统靛蓝半透明 */
+  color: rgba(94, 92, 230, 0.55);
   line-height: 1.6;
 }
 
 .form-buttons {
   margin-top: 30px;
   padding-top: 20px;
-  border-top: 1px solid #ebeef5;
+  /* 顶部分隔线使用系统蓝半透明 */
+  border-top: 1px solid rgba(10, 132, 255, 0.2);
 
   :deep(.el-button--warning) {
-    background-color: $yellow-primary;
-    border-color: $yellow-primary;
-    color: #fff;
+    /* 主按钮使用系统蓝 */
+    background-color: $primary;
+    border-color: $primary;
+    color: $sys-yellow;
 
     &:hover {
-      background-color: $yellow-dark;
-      border-color: $yellow-dark;
+      background-color: $primary-dark;
+      border-color: $primary-dark;
     }
 
     &.is-plain {
-      background-color: $yellow-light;
-      color: $yellow-primary;
-      border-color: $yellow-primary;
+      background-color: $primary-light;
+      color: $primary;
+      border-color: $primary;
 
       &:hover {
-        background-color: $yellow-primary;
-        color: #fff;
+        background-color: $primary;
+        color: $sys-yellow;
       }
     }
   }

@@ -13,11 +13,10 @@ import start.controller.支付宝.DTO.RefundDTO;
 import start.controller.支付宝.service.AlipayService;
 
 import java.nio.charset.StandardCharsets;
-//测试支付接口
 @RestController
 @RequestMapping("/pay")
 @Slf4j
-public class PayTest {
+public class PayController {
 
     @Autowired
     private AlipayService alipayService;

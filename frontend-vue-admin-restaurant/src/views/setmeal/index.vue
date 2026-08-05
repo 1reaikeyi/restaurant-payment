@@ -64,7 +64,7 @@
       v-loading="loading"
       class="setmeal-table"
       @selection-change="handleSelectionChange"
-      :header-cell-style="{ background: '#fdf6ec', color: '#e6a23c', fontWeight: 'bold' }"
+      :header-cell-style="{ background: 'rgba(10, 132, 255, 0.1)', color: '#0A84FF', fontWeight: 'bold' }"
     >
       <el-table-column type="selection" width="50" />
       <el-table-column prop="name" label="套餐名称" min-width="120" />
@@ -315,14 +315,26 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-/* 黄色主题变量 */
-$yellow-primary: #e6a23c;
-$yellow-light: #fdf6ec;
-$yellow-dark: #d49133;
+/* 系统色板 - 严格只使用以下 9 种颜色及其透明度变体 */
+$sys-blue: #0A84FF;      // 系统蓝 - 主题主色
+$sys-red: #FF453A;       // 系统红 - 价格
+$sys-orange: #FF9F0A;    // 系统橙
+$sys-yellow: #FFD60A;    // 系统黄
+$sys-green: #30D158;     // 系统绿
+$sys-cyan: #40C8E0;      // 系统青
+$sys-indigo: #5E5CE6;    // 系统靛蓝 - 深色/文字
+$sys-purple: #BF5AF2;    // 系统紫
+$sys-pink: #FF375F;      // 系统粉
+
+/* 主题色变量（基于系统蓝） */
+$primary: $sys-blue;
+$primary-light: rgba(10, 132, 255, 0.1);   // 主色浅背景
+$primary-dark: $sys-indigo;                  // 主色深色
 
 .setmeal-container {
   padding: 20px;
-  background: #fff;
+  /* 容器背景使用系统蓝极浅透明度 */
+  background: rgba(10, 132, 255, 0.04);
   border-radius: 4px;
   min-height: calc(100vh - 120px);
 }
@@ -330,7 +342,8 @@ $yellow-dark: #d49133;
 .search-bar {
   margin-bottom: 20px;
   padding: 20px;
-  background: $yellow-light;
+  /* 搜索栏背景使用主色浅背景 */
+  background: $primary-light;
   border-radius: 4px;
 
   .el-form-item {
@@ -338,13 +351,14 @@ $yellow-dark: #d49133;
   }
 
   :deep(.el-button--warning) {
-    background-color: $yellow-primary;
-    border-color: $yellow-primary;
-    color: #fff;
+    /* 主按钮使用系统蓝 */
+    background-color: $primary;
+    border-color: $primary;
+    color: $sys-yellow;
 
     &:hover {
-      background-color: $yellow-dark;
-      border-color: $yellow-dark;
+      background-color: $primary-dark;
+      border-color: $primary-dark;
     }
   }
 }
@@ -355,8 +369,8 @@ $yellow-dark: #d49133;
 
   :deep(.el-table__header-wrapper) {
     th {
-      background-color: $yellow-light !important;
-      color: $yellow-dark !important;
+      background-color: $primary-light !important;
+      color: $primary-dark !important;
       font-weight: bold;
     }
   }
@@ -373,20 +387,23 @@ $yellow-dark: #d49133;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #f5f7fa;
-    color: #909399;
+    /* 占位背景使用系统蓝浅透明度 */
+    background: rgba(10, 132, 255, 0.08);
+    /* 占位文字使用系统靛蓝半透明 */
+    color: rgba(94, 92, 230, 0.5);
   }
 
   .price {
-    color: #f56c6c;
+    /* 价格使用系统红 */
+    color: $sys-red;
     font-weight: 500;
   }
 
   :deep(.el-button--warning) {
-    color: $yellow-primary;
+    color: $primary;
 
     &:hover {
-      color: $yellow-dark;
+      color: $primary-dark;
     }
   }
 }
@@ -397,12 +414,12 @@ $yellow-dark: #d49133;
   padding: 20px 0;
 
   :deep(.el-pagination.is-background .el-pager li:not(.is-disabled).is-active) {
-    background-color: $yellow-primary;
+    background-color: $primary;
   }
   
   :deep(.el-pagination.is-background .btn-prev:hover),
   :deep(.el-pagination.is-background .btn-next:hover) {
-    color: $yellow-primary;
+    color: $primary;
   }
 }
 </style>

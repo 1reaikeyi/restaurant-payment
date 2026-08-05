@@ -343,6 +343,12 @@ Q：菜品/套餐用"逻辑过期 + 分布式锁"，为什么分类直接用 @Ca
 
 ### 策略流程图
 
+```
+// 实体关系：category-->dishs 1:N dishDetail
+```
+
+
+
 ```java
 【新增流程】
 用户请求 → AdminDishController/create()
@@ -544,10 +550,15 @@ Q：查不到数据为什么也要缓存空值？为什么逻辑过期时间要�
 
 ### 策略流程图
 
+```
+// 实体关系：category--> Plan，Plan 1:N PlanDetail，PlanDetail 1:N Dish，多表查询
+// PlanDetail通过 plan_id 关联Plan，Dish通过 dish_id 关联PlanDetail, 一个plan可包含多个dish（如：米饭x2、红烧肉x1、青菜x1）
+```
+
+
+
 ```java
-// 实体关系：Plan（套餐主表） 1:N PlanDetail（套餐菜品明细子表）
-// Plan.java 对应 plan 表，PlanDetail.java 对应 plan_detail 表
-// 通过 plan_id 外键关联，一个套餐可包含多个菜品（如：米饭x2、红烧肉x1、青菜x1）
+
 【新增流程】
 用户请求 → AdminPlanController/create()
     → PlanDTO 转 Plan 实体 → planService.save(plan) → MySQL 保存主表

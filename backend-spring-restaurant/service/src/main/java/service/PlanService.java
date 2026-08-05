@@ -3,6 +3,7 @@ package service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import model.dto.PlanDTO;
 import model.entity.Plan;
+import model.entity.PlanDetail;
 
 import java.util.List;
 
@@ -17,4 +18,6 @@ public interface PlanService extends IService<Plan> {
     void deleteCacheById(Long id);
 
     Plan readCache(Long id);
+
+    Integer[] ofDishId(PlanDetail planDetail);
 }

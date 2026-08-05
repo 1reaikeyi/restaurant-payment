@@ -294,14 +294,26 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-/* 黄色主题变量 */
-$yellow-primary: #e6a23c;
-$yellow-light: #fdf6ec;
-$yellow-dark: #d49133;
+/* 系统色板 - 严格只使用以下 9 种颜色及其透明度变体 */
+$sys-blue: #0A84FF;      // 系统蓝 - 主题主色
+$sys-red: #FF453A;       // 系统红
+$sys-orange: #FF9F0A;    // 系统橙
+$sys-yellow: #FFD60A;    // 系统黄
+$sys-green: #30D158;     // 系统绿 - 营业状态
+$sys-cyan: #40C8E0;      // 系统青
+$sys-indigo: #5E5CE6;    // 系统靛蓝 - 深色/文字
+$sys-purple: #BF5AF2;    // 系统紫
+$sys-pink: #FF375F;      // 系统粉 - 紧急
+
+/* 主题色变量（基于系统蓝） */
+$primary: $sys-blue;
+$primary-light: rgba(10, 132, 255, 0.1);   // 主色浅背景
+$primary-dark: $sys-indigo;                  // 主色深色
 
 .shop-container {
   padding: 20px;
-  background: #fff;
+  /* 容器背景使用系统蓝极浅透明度 */
+  background: rgba(10, 132, 255, 0.04);
   border-radius: 4px;
   min-height: calc(100vh - 120px);
 }
@@ -312,13 +324,15 @@ $yellow-dark: #d49133;
   .page-title {
     font-size: 20px;
     font-weight: 600;
-    color: #303133;
+    /* 标题文字使用系统靛蓝 */
+    color: $sys-indigo;
     margin: 0 0 8px 0;
   }
 
   .page-subtitle {
     font-size: 14px;
-    color: #909399;
+    /* 副标题使用系统靛蓝半透明 */
+    color: rgba(94, 92, 230, 0.55);
     margin: 0;
   }
 }
@@ -335,28 +349,32 @@ $yellow-dark: #d49133;
   transition: all 0.3s ease;
 
   &.open {
-    background: linear-gradient(135deg, #f0f9eb 0%, #e1f3d8 100%);
-    border: 2px solid #67c23a;
+    /* 营业中渐变背景使用系统绿透明度 */
+    background: linear-gradient(135deg, rgba(48, 209, 88, 0.15) 0%, rgba(48, 209, 88, 0.25) 100%);
+    /* 边框使用系统绿 */
+    border: 2px solid $sys-green;
 
     .status-icon {
-      color: #67c23a;
+      color: $sys-green;
     }
 
     .status-text h3 {
-      color: #67c23a;
+      color: $sys-green;
     }
   }
 
   &.closed {
-    background: linear-gradient(135deg, #f4f4f5 0%, #e9e9eb 100%);
-    border: 2px solid #909399;
+    /* 关闭渐变背景使用系统靛蓝透明度 */
+    background: linear-gradient(135deg, rgba(94, 92, 230, 0.1) 0%, rgba(94, 92, 230, 0.2) 100%);
+    /* 边框使用系统靛蓝 */
+    border: 2px solid $sys-indigo;
 
     .status-icon {
-      color: #909399;
+      color: $sys-indigo;
     }
 
     .status-text h3 {
-      color: #909399;
+      color: $sys-indigo;
     }
   }
 
@@ -377,7 +395,8 @@ $yellow-dark: #d49133;
 
     p {
       font-size: 14px;
-      color: #606266;
+      /* 描述文字使用系统靛蓝半透明 */
+      color: rgba(94, 92, 230, 0.7);
       margin: 0;
     }
   }
@@ -401,10 +420,12 @@ $yellow-dark: #d49133;
     gap: 6px;
     margin-bottom: 16px;
     font-size: 14px;
-    color: #606266;
+    /* 提示文字使用系统靛蓝半透明 */
+    color: rgba(94, 92, 230, 0.7);
 
     .el-icon {
-      color: $yellow-primary;
+      /* 图标使用系统蓝 */
+      color: $primary;
     }
   }
 
@@ -414,15 +435,15 @@ $yellow-dark: #d49133;
     font-size: 16px;
     border-radius: 8px;
 
-    /* 黄色主题按钮 */
+    /* 主色按钮 */
     &.el-button--warning {
-      background-color: $yellow-primary;
-      border-color: $yellow-primary;
-      color: #fff;
+      background-color: $primary;
+      border-color: $primary;
+      color: $sys-yellow;
 
       &:hover {
-        background-color: $yellow-dark;
-        border-color: $yellow-dark;
+        background-color: $primary-dark;
+        border-color: $primary-dark;
       }
     }
 
@@ -439,8 +460,10 @@ $yellow-dark: #d49133;
   .export-card {
     :deep(.el-card__header) {
       padding: 15px 20px;
-      background: $yellow-light;
-      border-bottom: 1px solid #f0e6d3;
+      /* 卡片头部背景使用主色浅背景 */
+      background: $primary-light;
+      /* 底部分隔线使用系统蓝半透明 */
+      border-bottom: 1px solid rgba(10, 132, 255, 0.2);
     }
 
     .card-header {
@@ -449,10 +472,11 @@ $yellow-dark: #d49133;
       gap: 8px;
       font-size: 16px;
       font-weight: 500;
-      color: $yellow-dark;
+      /* 标题使用系统靛蓝 */
+      color: $primary-dark;
 
       .el-icon {
-        color: $yellow-primary;
+        color: $primary;
       }
     }
   }
@@ -469,10 +493,10 @@ $yellow-dark: #d49133;
       align-items: center;
       gap: 6px;
       font-size: 14px;
-      color: #606266;
+      color: rgba(94, 92, 230, 0.7);
 
       .el-icon {
-        color: $yellow-primary;
+        color: $primary;
       }
     }
 
@@ -483,12 +507,14 @@ $yellow-dark: #d49133;
       border-radius: 8px;
 
       &.el-button--success {
-        background-color: #67c23a;
-        border-color: #67c23a;
+        /* 成功按钮使用系统绿 */
+        background-color: $sys-green;
+        border-color: $sys-green;
 
         &:hover {
-          background-color: #529b2e;
-          border-color: #529b2e;
+          /* hover 使用系统绿半透明加深 */
+          background-color: rgba(48, 209, 88, 0.8);
+          border-color: rgba(48, 209, 88, 0.8);
         }
       }
 
@@ -506,8 +532,8 @@ $yellow-dark: #d49133;
   .reminder-card {
     :deep(.el-card__header) {
       padding: 15px 20px;
-      background: $yellow-light;
-      border-bottom: 1px solid #f0e6d3;
+      background: $primary-light;
+      border-bottom: 1px solid rgba(10, 132, 255, 0.2);
     }
 
     .card-header {
@@ -516,10 +542,10 @@ $yellow-dark: #d49133;
       gap: 8px;
       font-size: 16px;
       font-weight: 500;
-      color: $yellow-dark;
+      color: $primary-dark;
 
       .el-icon {
-        color: $yellow-primary;
+        color: $primary;
       }
     }
   }
@@ -544,25 +570,27 @@ $yellow-dark: #d49133;
 
     .urgent-btn {
       &.el-button--primary {
-        background-color: #f56c6c;
-        border-color: #f56c6c;
+        /* 紧急按钮使用系统粉 */
+        background-color: $sys-pink;
+        border-color: $sys-pink;
 
         &:hover {
-          background-color: #e45a5a;
-          border-color: #e45a5a;
+          /* hover 使用系统红 */
+          background-color: $sys-red;
+          border-color: $sys-red;
         }
       }
     }
 
     .notify-btn {
       &.el-button--warning {
-        background-color: $yellow-primary;
-        border-color: $yellow-primary;
-        color: #fff;
+        background-color: $primary;
+        border-color: $primary;
+        color: $sys-yellow;
 
         &:hover {
-          background-color: $yellow-dark;
-          border-color: $yellow-dark;
+          background-color: $primary-dark;
+          border-color: $primary-dark;
         }
       }
     }
@@ -574,12 +602,14 @@ $yellow-dark: #d49133;
     justify-content: center;
     gap: 6px;
     padding-top: 15px;
-    border-top: 1px dashed #ebeef5;
+    /* 顶部分隔线使用系统蓝半透明虚线 */
+    border-top: 1px dashed rgba(10, 132, 255, 0.2);
     font-size: 13px;
-    color: #909399;
+    /* 提示文字使用系统靛蓝半透明 */
+    color: rgba(94, 92, 230, 0.55);
 
     .el-icon {
-      color: $yellow-primary;
+      color: $primary;
     }
   }
 }
@@ -592,8 +622,8 @@ $yellow-dark: #d49133;
   .info-card {
     :deep(.el-card__header) {
       padding: 15px 20px;
-      background: $yellow-light;
-      border-bottom: 1px solid #f0e6d3;
+      background: $primary-light;
+      border-bottom: 1px solid rgba(10, 132, 255, 0.2);
     }
 
     .card-header {
@@ -602,10 +632,10 @@ $yellow-dark: #d49133;
       gap: 8px;
       font-size: 16px;
       font-weight: 500;
-      color: $yellow-dark;
+      color: $primary-dark;
 
       .el-icon {
-        color: $yellow-primary;
+        color: $primary;
       }
     }
   }
@@ -620,16 +650,18 @@ $yellow-dark: #d49133;
       align-items: center;
       gap: 10px;
       padding: 12px 0;
-      border-bottom: 1px solid #f0f0f0;
+      /* 底部分隔线使用系统蓝半透明 */
+      border-bottom: 1px solid rgba(10, 132, 255, 0.1);
       font-size: 14px;
-      color: #606266;
+      /* 列表文字使用系统靛蓝半透明 */
+      color: rgba(94, 92, 230, 0.7);
 
       &:last-child {
         border-bottom: none;
       }
 
       .el-icon {
-        color: $yellow-primary;
+        color: $primary;
         font-size: 16px;
       }
     }

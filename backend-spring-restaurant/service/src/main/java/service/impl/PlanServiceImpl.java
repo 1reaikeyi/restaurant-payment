@@ -130,6 +130,9 @@ public class PlanServiceImpl extends ServiceImpl<PlanMapper, Plan> implements Pl
         }
         return redisData.getData() == null ? null : BeanUtil.toBean(redisData.getData(), Plan.class);
     }
+
+
+
     public Plan getPlanLock(Long id){
         RLock redissonLock = redissonClient.getLock("plan:lock:" + id);
         boolean locked = false;
@@ -216,6 +219,16 @@ public class PlanServiceImpl extends ServiceImpl<PlanMapper, Plan> implements Pl
                 }
             }
         });
+    }
+    @Override
+    public Integer[] ofDishId(PlanDetail planDetail) {
+        String dishId = planDetail.getDishId();
+        String[] strArray = dishId.split(",");
+        Integer[] numArray = new Integer[strArray.length];
+        for (int i = 0; i < strArray.length; i++) {
+            numArray[i] = Integer.parseInt(strArray[i]);
+        }
+        return numArray;
     }
 
 }

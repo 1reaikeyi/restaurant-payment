@@ -1,13 +1,13 @@
 <template>
   <div class="login">
     <div class="login-box">
-      <img src="../assets/login/login.png" alt="" />
+      <img src="../assets/login/login.png" style="width: 500px; height: 475px"alt="" />
       <div class="login-form">
         <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules">
           <div class="login-form-title">
             <img
-                src="../assets/login/a.png"
-                style="width: 100px; height: 60px"
+                src="../assets/login/login-ico.png"
+                style="width: 100px; height: 100px"
                 alt=""
             />
           </div>
@@ -110,12 +110,24 @@ const handleLogin = async () => {
 </script>
 
 <style lang="scss" scoped>
+/* 系统色板 - 严格只使用以下 9 种颜色及其透明度变体 */
+$sys-blue: #0A84FF;      // 系统蓝
+$sys-red: #FF453A;       // 系统红
+$sys-orange: #FF9F0A;    // 系统橙
+$sys-yellow: #FFD60A;    // 系统黄
+$sys-green: #30D158;     // 系统绿
+$sys-cyan: #40C8E0;      // 系统青
+$sys-indigo: #5E5CE6;    // 系统靛蓝（色板中最深，用作主文字色）
+$sys-purple: #BF5AF2;    // 系统紫
+$sys-pink: #FF375F;      // 系统粉
+
 .login {
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background-color: #333;
+  /* 页面深背景使用系统靛蓝 */
+  background-color: $sys-indigo;
 }
 
 .login-box {
@@ -132,11 +144,13 @@ const handleLogin = async () => {
 .title {
   margin: 0px auto 10px auto;
   text-align: left;
-  color: #707070;
+  /* 标题文字使用系统蓝半透明 */
+  color: rgba(10, 132, 255, 0.7);
 }
 
 .login-form {
-  background: #ffffff;
+  /* 表单背景使用系统蓝极浅透明度 */
+  background: rgba(10, 132, 255, 0.05);
   width: 40%;
   border-radius: 0px 8px 8px 0px;
   display: flex;
@@ -151,8 +165,9 @@ const handleLogin = async () => {
   }
   .el-form-item.is-error .el-input__inner {
     border: 0 !important;
-    border-bottom: 1px solid #fd7065 !important;
-    background: #fff !important;
+    /* 错误边框使用系统红 */
+    border-bottom: 1px solid $sys-red !important;
+    background: rgba(10, 132, 255, 0.05) !important;
   }
   .input-icon {
     height: 32px;
@@ -161,11 +176,13 @@ const handleLogin = async () => {
   }
   .el-input__inner {
     border: 0;
-    border-bottom: 1px solid #e9e9e8;
+    /* 输入框下边框使用系统蓝半透明 */
+    border-bottom: 1px solid rgba(10, 132, 255, 0.2);
     border-radius: 0;
     font-size: 12px;
     font-weight: 400;
-    color: #333333;
+    /* 输入文字使用系统靛蓝 */
+    color: $sys-indigo;
     height: 32px;
     line-height: 32px;
   }
@@ -176,7 +193,8 @@ const handleLogin = async () => {
     padding-left: 26px;
   }
   .el-input__inner::placeholder {
-    color: #aeb5c4;
+    /* 占位符使用系统靛蓝低透明度 */
+    color: rgba(94, 92, 230, 0.4);
   }
   .el-form-item--medium .el-form-item__content {
     line-height: 32px;
@@ -194,12 +212,15 @@ const handleLogin = async () => {
   font-size: 12px;
   border: 0;
   font-weight: 500;
-  color: #333333;
-  background-color: #ffc200;
+  /* 按钮文字使用系统靛蓝 */
+  color: $sys-indigo;
+  /* 登录按钮使用系统黄 */
+  background-color: $sys-yellow;
   &:hover,
   &:focus {
-    background-color: #ffc200;
-    color: #ffffff;
+    background-color: $sys-yellow;
+    /* hover 时文字使用系统蓝 */
+    color: $sys-blue;
   }
 }
 .login-form-title {
@@ -211,7 +232,8 @@ const handleLogin = async () => {
   .title-label {
     font-weight: 500;
     font-size: 20px;
-    color: #333333;
+    /* 标题文字使用系统靛蓝 */
+    color: $sys-indigo;
     margin-left: 10px;
   }
 }
