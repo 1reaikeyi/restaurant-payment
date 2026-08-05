@@ -1,10 +1,27 @@
-# Restaurant-payment 餐饮和支付系统
+<div align="center">
+  <h1>Restaurant-payment 餐饮和支付系统</h1>
+    <h2>restaurant-payment：B2C经营模式，一个餐馆卖家，多个买家。餐馆服务由店长，店员和客户组成。</h2>
+    <h4>一个由Spring Boot 3 + Vue 3 的前后端分离架构，中间件使用redis，主业务为餐饮订单和支付的全栈系统，同时Spring AI（spring-ai-starter-model-openai） 作为单独服务接入，通过菜品识别对应菜单。
+    </h4>
+    <h1>配置要求</h1>
+    <img src="https://img.shields.io/badge/Java-17+ -6DB33F?style=flat-square&logo=java&logoColor=white" alt="Java" />
+    <img src="https://img.shields.io/badge/Spring%20Boot-3.+ -6DB33F?style=flat-square&logo=springboot&logoColor=white" alt="Spring Boot" />
+    <img src="https://img.shields.io/badge/MySQL-8.0+ -6DB33F?style=flat-square&logo=mysql&logoColor=white" alt="mysql" />
+    <img src="https://img.shields.io/badge/Redis-7.0+ -6DB33F?style=flat-square&logo=redis&logoColor=white" alt="redis" />
+    <img src="https://img.shields.io/badge/Spring%20AI-1.1.+ -6DB33F?style=flat-square&logo=spring&logoColor=white" alt="spring ai" />
+    <img src="https://img.shields.io/badge/Vue-Node.js20.19.+ -6DB33F?style=flat-square&logo=vuedotjs&logoColor=white" alt="vue" />
+  </p>
+</div>
 
-restaurant-payment：B2C经营模式，一个餐馆卖家，多个买家。餐馆服务由店长，店员和客户组成。
 
-一个由Spring Boot 3 + Vue 3 的前后端分离架构，中间件使用redis，主业务为餐饮订单和支付的全栈系统，同时Spring AI（这里使用spring-ai-starter-model-openai） 作为单独服务接入，通过菜品识别对应菜单。
 
-# 后端说明
+------
+
+# 架构图
+
+| 数据流向 | <img src="说明\原型功能\架构1.png" alt="架构" style="zoom: 50%;" /> |
+| -------- | ------------------------------------------------------------ |
+| 总体设计 | <img src="说明\原型功能\架构2.png" alt="架构" style="zoom:25%;" /> |
 
 **订单状态流转**：
 
@@ -16,64 +33,40 @@ restaurant-payment：B2C经营模式，一个餐馆卖家，多个买家。餐�
 
 **支付流程**：
 
-| 步骤 | 截图 |
-| :--: | :--: |
-| 集成到订单 | <img src="说明/支付功能结果/支付宝1.png" alt="支付" style="zoom:25%;" /> |
-| 支付过程 | <img src="说明/支付功能结果/支付宝2.png" alt="支付" style="zoom: 50%;" /> |
-| 同步支付成功 | <img src="说明/支付功能结果/支付宝3.png" alt="支付" style="zoom: 50%;" /> |
-| 异步检验 | <img src="说明/支付功能结果/支付宝4.png" alt="支付" style="zoom: 50%;" /> |
+| 集成到订单 | 支付过程 | 同步支付成功 | 异步检验 |
+| :--: | :--: | ---- | ---- |
+| <img src="说明/支付功能结果/支付宝1.png" alt="支付" style="zoom:25%;" /> | <img src="说明/支付功能结果/支付宝2.png" alt="支付" style="zoom: 25%;" /> | <img src="说明/支付功能结果/支付宝3.png" alt="支付" style="zoom: 25%;" /> | <img src="说明/支付功能结果/支付宝4.png" alt="支付" style="zoom: 25%;" /> |
 
 **第三方授权登录流程图**
 
-| 1    | <img src="说明\支付宝，qq授权登录\ali1.png" alt="支付宝" style="zoom:25%;" /> |
-| ---- | ------------------------------------------------------------ |
-|      | <img src="说明\支付宝，qq授权登录\ali2.png" alt="支付宝" style="zoom:50%;" /> |
-|      | <img src="说明\支付宝，qq授权登录\ali3.png" alt="支付宝" style="zoom:50%;" /> |
+| 1                                                            | 2                                                            | 3                                                            |
+| ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| <img src="说明\支付宝，qq授权登录\ali1.png" alt="支付宝" style="zoom:25%;" /> | <img src="说明\支付宝，qq授权登录\ali2.png" alt="支付宝" style="zoom:50%;" /> | <img src="说明\支付宝，qq授权登录\ali3.png" alt="支付宝" style="zoom:50%;" /> |
 
+# 启动步骤
 
+1. 创建数据库并导入 `sql/` 目录脚本。
+2. 修改 `start/src/main/resources/application-dev.yml` 中数据库与 Redis 配置。
+3. `npm run dev ` 前端启动服务。
 
 # 项目结构
 
 ```
 restaurant-payment/
 ├── backend-spring-restaurant/            # 后端代码（Spring Boot 3 多模块）
-│   ├── common/                           # 公共模块（常量/异常/工具/JwtProperties/AliOssProperties）
-│   │
+│   ├── common/                           # 公共模块
 │   ├── model/                            # 实体与数据传输对象
-│   │
 │   ├── mapper/                           # 数据访问层（MyBatis-Plus）
-│   │
 │   ├── service/                          # 业务逻辑模块
-│   │
 │   ├── start/                            # 主业务启动模块
-│   │   ├── aop/                          # Info/OperationLogging 注解 + ServiceInterceptAspect 切面
-│   │   ├── config/                       # Config 等
-│   │   ├── controller/                   # 按职责分目录
-│   │   │   ├── admin/                    # 管理端
-│   │   │   ├── user/                     # 用户端
-│   │   │   ├── login/                    # 登录入口
-│   │   │   ├── file/                     # 文件上传与Excel
-│   │   │   ├── websocket/                # WebSocket 推送
-│   │   │   ├── timetask/                 # 定时任务（订单超时取消等）
-│   │   │   └── 支付宝/                   # 支付宝支付/退款/回调/OAuthLogin
-│   │   ├── filter/                       # 安全过滤器链
-│   │   │   ├── UserRefreshRequestFilter          # user Token 校验/滑动刷新
-│   │   │   ├── EmployeeRefreshRequestFilter      # emp  Token 校验/滑动刷新
-│   │   │   └── InformationRequestFilter          # 兜底认证拦截
-│   │   ├── security/                     # Spring Security 主体与上下文工具
-│   │   ├── exceptionHandle/             # GlobalExceptionHandler 全局异常
-│   │   ├── metaHandler/                 # AutoMetaObjectHandler 自动填充 createTime/updateTime
-│   │   ├── oparation/                   # OperationType 操作类型枚举
-│   │   └── img/                         # 初始化图片资源
-│   │
 │   └── ai-see/                           # AI视觉识别服务（独立服务）
 │
 ├── frontend-vue-admin-restaurant/        # 前端管理端（Vue 3）
 │   ├── src/
-│   │   ├── api/                          # API接口封装
+│   │   ├── api/                          # API接口封装（axios）
 │   │   ├── views/                        # 页面视图
 │   │   ├── layout/                       # 布局组件
-│   │   ├── router/                       # 路由配置
+│   │   ├── router/                       # 路由配置(router)
 │   │   ├── stores/                       # 状态管理（Pinia）
 │   │   └── utils/                        # 工具函数
 │   └── package.json
@@ -91,18 +84,59 @@ restaurant-payment/
     └── user的api文档.md                  # 用户端
 ```
 
-# 环境要求
-
-- JDK 17+
-- Spring Boot 3+
-- Spring AI 1.1+
-- Node.js 20.19.+
-- MySQL 8.0+
-- Redis 7.0+
-- Maven 3.8+
-- 以上为最低配置
-
 ---
+#  能力全景
+
+| 能力域   | 能力说明                                                    |
+| -------- | ----------------------------------------------------------- |
+| 平台管理 | 员工管理、用户管理、权限拦截、登录校验、异常统一处理。      |
+|          |                                                             |
+|          |                                                             |
+|          |                                                             |
+|          |                                                             |
+| 数据分析 | 管理端数据大屏、销售排行、订单趋势、用户增长观察。          |
+|          |                                                             |
+| 智能问答 |                                                             |
+| 缓存性能 | Redis + Spring Cache 用于高频访问数据缓存，减少数据库压力。 |
+| 可扩展性 | 模块化目录结构与分层设计，支持功能平滑扩展和二次开发。      |
+
+# 详细能力介绍
+
+## 1. 管理后台能力
+
+- 用户与员工管理：支持账号维护、状态启停、信息检索与运营分层管理。
+- 商品与分类管理：支持果蔬分类、商品信息、套餐组合、批量操作与业务配置。
+- 
+- 评价治理能力：支持评价列表、回复机制、评价统计看板。
+
+## 2. 用户端能力
+
+- 
+- 商品消费：支持果蔬详情查看、套餐详情查看、规格组合与加入购物车。
+- 交易转化：支持地址管理、优惠券抵扣、订单提交与支付流程承接。
+- 
+- 销量排行：支持日榜、周榜、月榜多维统计浏览，提升选购效率。
+
+## 3. 数据分析能力
+
+- 管理端数据大屏：展示用户数、订单数、营业额、排行等核心经营指标。
+- 评价统计：支持评价数量、评分分布、回复状态等可视化分析。
+- 
+
+## 4. 智能助手能力
+
+- 
+- 上下文会话：支持连续对话并保留上下文（含自动保留/清理策略）。
+- 业务融合：可作为前台浮窗助手，辅助用户提高下单决策效率。
+
+## 5. 工程与技术能力
+
+- 
+- 统一响应与异常治理：提升接口一致性与排障效率。
+- 。
+- 模块化代码组织：便于新增功能、替换组件和持续迭代。
+
+# 后端说明
 
 ## 一、用户与员工双端登录认证模块
 
@@ -214,6 +248,21 @@ protected void doFilterInternal(HttpServletRequest request, HttpServletResponse 
 ```
 
 ### 问题修复阶段
+
+Q：单过滤器处理双端 Token?
+
+```java
+// 其他人写法 - 混乱！
+public class SingleFilter extends OncePerRequestFilter {
+    protected void doFilterInternal(...) {
+        // 一个过滤器里 if-else 判断 user/emp，逻辑耦合，难以维护
+        if (type.equals("user")) { ... }
+        else if (type.equals("emp")) { ... }
+    }
+}
+```
+
+> 本项目改进：拆为 `UserRefreshRequestFilter` + `EmployeeRefreshRequestFilter` 两个过滤器，各自只处理自己类型的 Token，非自己类型的直接放行。职责单一，互不干扰。
 
 Q：双端登录认证时，如何避免两个 RefreshRequestFilter 都尝试解析同一个 Token 导致重复验证？
 
@@ -346,8 +395,6 @@ Q：菜品/套餐用"逻辑过期 + 分布式锁"，为什么分类直接用 @Ca
 ```
 // 实体关系：category-->dishs 1:N dishDetail
 ```
-
-
 
 ```java
 【新增流程】
@@ -1353,7 +1400,7 @@ Q：node1（视觉识别）失败时，node2（工具查询）如何处理？
 ---
 
 
-# 核心组件设计
+# 组件设计
 
 ### 1. 双端认证过滤器链（SecurityFilterChain）
 
@@ -1406,107 +1453,6 @@ Q：@CacheEvict(allEntries=true) 和 @CacheEvict(key = "#id") 两种清除策略
 // 节点（NodeAction）+ 边（Edge）+ 状态（OverAllState）
 // 适合多步骤、有状态流转的 AI 工作流
 ```
-
----
-
-# 依赖说明
-
-### admin功能依赖
-
-| 依赖 | 版本 | 功能支撑 |
-| :--- | :--- | :--- |
-| Spring Boot Starter Web | 3.3.8 | AdminDishController/AdminPlanController/AdminCategoryController 提供管理端 REST 接口；MultipartFile 文件上传支持 |
-| Spring Boot Starter Security | 3.3.8 | SecurityConfig 配置认证规则；MultiLoginAuthenticationProvider 双端登录认证；BCryptPasswordEncoder 密码加密 |
-| MyBatis Plus | 3.5.9 | DishMapper/PlanMapper/RestaurantCategoryMapper 实现菜品、套餐、分类数据 CRUD；AutoMetaObjectHandler 自动填充 createTime/updateTime |
-| Spring Boot Starter Data Redis | 3.3.8 | @Cacheable/@CacheEvict 声明式缓存分类和套餐数据；RedisCacheManager 统一 TTL 配置 |
-| JJWT API/Impl/Jackson | 0.12.6 | JwtUtil 生成员工 Token（TYPE=emp）；EmployeeRefreshRequestFilter 校验 Token 并实现滑动过期 |
-| Hutool All | 5.8.26 | BeanUtil DTO 转实体；StrUtil 判空；JSONUtil 序列化/反序列化 |
-| Redisson | 3.52.0 | 分布式锁支持（预留扩展） |
-| Spring Boot Starter AOP | 3.3.8 | ServiceInterceptAspect 切面实现 @OperationLogging 操作日志和 @Info 耗时监控 |
-
-### user功能依赖
-
-| 依赖 | 版本 | 功能支撑 |
-| :--- | :--- | :--- |
-| Spring Boot Starter Web | 3.3.8 | DishController/PlanController/ShoppingController 提供用户端 REST 接口；WebSocketServer 实时消息推送 |
-| Spring Boot Starter Data Redis | 3.3.8 | 存储用户 Token（`restaurant:user:{userId}`）；存储店铺营业状态（`SHOP_STATUS`）；Spring Cache 缓存分类和套餐数据 |
-| MyBatis Plus | 3.5.9 | UserMapper 实现用户数据 CRUD；UserService 查询用户信息 |
-| JJWT API/Impl/Jackson | 0.12.6 | JwtUtil 生成用户 Token（TYPE=user）；UserRefreshRequestFilter 校验 Token 并实现滑动过期 |
-| Hutool All | 5.8.26 | BeanUtil 对象属性拷贝；BooleanUtil 布尔值判断；UUID 生成文件名 |
-| Aliyun SDK OSS | 3.17.4 | UserController 实现用户头像上传到阿里云 OSS，返回 CDN 访问 URL |
-
-### 支付功能依赖
-
-| 依赖 | 版本 | 功能支撑 |
-| :--- | :--- | :--- |
-| Alipay SDK Java | 4.40.658.ALL | AlipayService 实现电脑网站支付（AlipayTradePagePayRequest）、交易查询、退款、退款查询、关单；OAuthLogin 实现 auth_code 换 access_token |
-| Spring Boot Starter Web | 3.3.8 | 提供 HttpServletResponse 流式输出支付宝收银台 HTML；@ConfigurationProperties 绑定 AlipayProperties |
-
-### AI 视觉识别功能依赖
-
-| 依赖 | 版本 | 功能支撑 |
-| :--- | :--- | :--- |
-| Spring AI BOM | 1.1.0 | 统一管理 Spring AI 版本 |
-| spring-ai-starter-model-openai | 1.1.0 | OpenAiChatModel 提供多模态对话能力；对接硅基流动 Qwen 模型 |
-| spring-ai-alibaba-graph-core | 1.1.0.0 | StateGraph 编排视觉识别节点和工具查询节点；OverAllState 在节点间传递状态 |
-| Spring AI Advisors Vector Store | 1.1.0 | MessageChatMemoryAdvisor 对话记忆；SimpleLoggerAdvisor 日志审计 |
-
-### 文件上传功能依赖
-
-| 依赖 | 版本 | 功能支撑 |
-| :--- | :--- | :--- |
-| Aliyun SDK OSS | 3.17.4 | AliOssUtil 实现文件上传到阿里云 OSS，返回 CDN 访问 URL |
-| Spring Boot Starter Web | 3.3.8 | MultipartFile 文件上传支持；StreamUtils 流式下载 |
-| EasyExcel | 3.3.2 | ExcelReportController 实现用户数据 Excel 写入、读取、下载 |
-
-### AOP 操作日志功能依赖
-
-| 依赖 | 版本 | 功能支撑 |
-| :--- | :--- | :--- |
-| Spring Boot Starter AOP | 3.3.8 | ServiceInterceptAspect 切面拦截 @Info/@OperationLogging 注解；@Around 环绕通知记录耗时和操作日志 |
-| Spring Boot Starter Security | 3.3.8 | OperationType 通过 SecurityContextParam.getCurrentUserId() 获取操作人 ID |
-
----
-
-### 对比分析
-
-**问题1：单过滤器处理双端 Token**
-
-```java
-// 其他人写法 - 混乱！
-public class SingleFilter extends OncePerRequestFilter {
-    protected void doFilterInternal(...) {
-        // 一个过滤器里 if-else 判断 user/emp，逻辑耦合，难以维护
-        if (type.equals("user")) { ... }
-        else if (type.equals("emp")) { ... }
-    }
-}
-```
-> 本项目改进：拆为 `UserRefreshRequestFilter` + `EmployeeRefreshRequestFilter` 两个过滤器，各自只处理自己类型的 Token，非自己类型的直接放行。职责单一，互不干扰。
-
-**问题2：操作日志，aop切入定位接口那些成功那些失败，方便运维**
-
-```java
-// 其他人写法 - 看不到日志！
-public static OperationType ok(String operation, Object message) {
-    log.debug("操作:" + operation);  // 默认 INFO 级别，debug 不输出
-    return op;
-}
-```
-> 本项目改进：改为 `log.info(...)`，确保默认配置下操作日志可见,开发阶段可以定位问题。运维和测试可在 `application.yml` 开启 `logging.level.start.oparation: debug` 替代。
-
-**问题3：异步通知不验签**
-
-```java
-// 其他人写法 - 危险！
-@PostMapping("/notify")
-public String notify(HttpServletRequest request) {
-    String outTradeNo = request.getParameter("out_trade_no");
-    orderService.updateStatus(outTradeNo, PAID);  // 不验签直接更新，可被伪造
-    return "success";
-}
-```
-> 本项目改进：异步通知必须 `AlipaySignature.rsaCheckV1` 验签，校验 `app_id`、金额一致性，做幂等检查（订单是否已处理）。验签失败返回 `failure` 让支付宝重试，避免丢失通知。
 
 ---
 
